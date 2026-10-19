@@ -281,25 +281,42 @@ function errorText(stdout, stderr, exitCode) {
 // Merge requests add {source, target, draft, status}; issues add {labels}.
 // status: ready | running | review | failed | conflict | draft
 
+const GH_PR_FIELDS = "number title url isDraft headRefName baseRefName reviewDecision mergeable updatedAt "
+    + "repository{nameWithOwner} commits(last:1){nodes{commit{statusCheckRollup{state}}}}";
+
 const GH_SEARCH_PRS = "query($q:String!){search(query:$q,type:ISSUE,first:50){nodes{...on PullRequest{"
-    + "number title url isDraft headRefName baseRefName reviewDecision mergeable updatedAt "
-    + "repository{nameWithOwner} commits(last:1){nodes{commit{statusCheckRollup{state}}}}}}}}";
+    + GH_PR_FIELDS + "}}}}";
+
+// Reviews: review requested, plus merge requests of others assigned to you
+// (many teams assign the reviewer instead). Two searches in one call.
+const GH_SEARCH_REVIEWS = "query($q:String!,$a:String!){"
+    + "requested:search(query:$q,type:ISSUE,first:50){nodes{...on PullRequest{" + GH_PR_FIELDS + "}}}"
+    + "assigned:search(query:$a,type:ISSUE,first:50){nodes{...on PullRequest{" + GH_PR_FIELDS + "}}}}";
 
 const GH_SEARCH_ISSUES = "query($q:String!){search(query:$q,type:ISSUE,first:50){nodes{...on Issue{"
     + "number title url updatedAt repository{nameWithOwner} labels(first:5){nodes{name}}}}}}";
 
 function queueCommand(account, kind) {
     if (account.provider === "gitlab") {
+        if (kind === "reviews") {
+            const requested = glApi(account, "merge_requests?scope=all&state=opened&per_page=50&reviewer_username="
+                                    + encodeURIComponent(account.user)) + " </dev/null";
+            const assigned = glApi(account, "merge_requests?scope=assigned_to_me&state=opened&per_page=50") + " </dev/null";
+            return "r=$(" + requested + ") && a=$(" + assigned + ") && printf '{\"requested\":%s,\"assigned\":%s}' \"$r\" \"$a\"";
+        }
         const path = {
             mine: "merge_requests?scope=created_by_me&state=opened&per_page=50",
-            reviews: "merge_requests?scope=all&state=opened&per_page=50&reviewer_username=" + encodeURIComponent(account.user),
             issues: "issues?scope=assigned_to_me&state=opened&per_page=50"
         }[kind];
         return glApi(account, path);
     }
+    if (kind === "reviews") {
+        return ghScript(account, ghApi("graphql", "-f query=" + q(GH_SEARCH_REVIEWS)
+            + " -f q=" + q("is:pr is:open archived:false review-requested:" + account.user)
+            + " -f a=" + q("is:pr is:open archived:false assignee:" + account.user + " -author:" + account.user)));
+    }
     const query = {
         mine: "is:pr is:open archived:false author:" + account.user,
-        reviews: "is:pr is:open archived:false review-requested:" + account.user,
         issues: "is:issue is:open archived:false assignee:" + account.user
     }[kind];
     return ghScript(account, ghApi("graphql", "-f query=" + q(kind === "issues" ? GH_SEARCH_ISSUES : GH_SEARCH_PRS)
@@ -331,8 +348,24 @@ function gitlabStatus(mr) {
     }
 }
 
+// Reviews: the requested ones first, then the assigned ones not already
+// listed, marked {assigned: true}. Own merge requests stay in My MRs.
 function parseQueue(account, kind, stdout) {
     const data = JSON.parse(stdout);
+    if (kind === "reviews") {
+        const gitlab = account.provider === "gitlab";
+        const requested = parseItems(account, kind, gitlab ? data.requested : data.data.requested.nodes);
+        const assigned = parseItems(account, kind, gitlab
+            ? data.assigned.filter(x => !x.author || x.author.username !== account.user)
+            : data.data.assigned.nodes);
+        const seen = new Set(requested.map(i => i.repoPath + "#" + i.number));
+        return requested.concat(assigned.filter(i => !seen.has(i.repoPath + "#" + i.number))
+                                        .map(i => Object.assign(i, { assigned: true })));
+    }
+    return parseItems(account, kind, account.provider === "gitlab" ? data : data.data.search.nodes);
+}
+
+function parseItems(account, kind, data) {
     if (account.provider === "gitlab") {
         return data.map(x => {
             const item = {
@@ -351,7 +384,7 @@ function parseQueue(account, kind, stdout) {
             return item;
         });
     }
-    return data.data.search.nodes.filter(n => n && n.number).map(n => {
+    return data.filter(n => n && n.number).map(n => {
         const item = {
             repoPath: n.repository.nameWithOwner, projectId: "", number: n.number, title: n.title,
             url: n.url, updatedAt: n.updatedAt

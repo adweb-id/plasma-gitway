@@ -68,7 +68,8 @@ should work (every command takes the host from the account), but are not tested.
 ## FAQ
 
 **What does the badge on the panel icon count?**
-Everything that waits for you to act: merge requests asking for your review, plus your own
+Everything that waits for you to act: merge requests asking for your review or assigned to
+you by someone else, plus your own
 merge requests that are ready to merge, have a failed pipeline or have conflicts. Running
 pipelines and drafts are not counted. Hover the icon to see the three numbers. The badge
 refreshes when the widget loads, when the popup opens and after Sync repos, and optionally

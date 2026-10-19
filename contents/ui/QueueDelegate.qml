@@ -195,7 +195,7 @@ PlasmaComponents3.ItemDelegate {
         if (isIssue) {
             return item.labels.join(", ");
         }
-        return {
+        const state = {
             ready: kind === "reviews" ? i18n("waiting for you") : i18n("ready to merge"),
             running: i18n("pipeline running"),
             review: i18n("awaiting review"),
@@ -203,6 +203,8 @@ PlasmaComponents3.ItemDelegate {
             conflict: i18n("conflicts"),
             draft: i18n("draft")
         }[item.status] || "";
+        // Assigned to you, not asked as reviewer
+        return !item.assigned ? state : state ? i18n("assigned · %1", state) : i18n("assigned");
     }
 
     // Issues: red for high/urgent/critical labels, orange for any other
