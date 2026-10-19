@@ -44,7 +44,6 @@ PlasmoidItem {
     readonly property int queueMaxAge: 60 * 1000 // reopening the popup within a minute keeps them
 
     // Panel badge: what waits for the user, from the Reviews and My MRs tabs
-    readonly property bool showBadge: Plasmoid.configuration.showBadge
     readonly property int readyCount: mineItems.filter(i => i.status === "ready").length
     readonly property int badgeCount: reviewItems.length + readyCount
     readonly property alias repoModel: repoModel
@@ -63,7 +62,7 @@ PlasmoidItem {
     Plasmoid.icon: iconSource
     toolTipMainText: i18n("Gitway")
     toolTipSubText: !account ? ""
-        : showBadge && queuesLoadedAt ? i18n("%1 · %2 waiting for review · %3 ready to merge",
+        : queuesLoadedAt ? i18n("%1 · %2 waiting for review · %3 ready to merge",
                                              Repos.accountLabel(account), reviewItems.length, readyCount)
         : i18n("%1 · %2 repos", Repos.accountLabel(account), repoCount)
 
@@ -165,8 +164,9 @@ PlasmoidItem {
             if (changed || !repoData) {
                 loadRepos();
             }
-            // The badge needs the queues even before the popup was ever opened
-            if ((root.expanded || showBadge) && (changed || !queuesLoadedAt || Date.now() - queuesLoadedAt > queueMaxAge)) {
+            // The badge needs the queues once when the widget loads, then each
+            // time the popup opens (at most once a minute)
+            if ((root.expanded || !queuesLoadedAt) && (changed || !queuesLoadedAt || Date.now() - queuesLoadedAt > queueMaxAge)) {
                 loadQueues();
             }
         });
@@ -330,6 +330,7 @@ PlasmoidItem {
             }
             if (exitCode === 0) {
                 loadRepos();
+                loadQueues(); // Sync repos refreshes the badge too
             } else {
                 syncError = errorLine(stderr) || i18n("Sync failed");
             }
@@ -366,11 +367,7 @@ PlasmoidItem {
         function onHiddenChanged() { root.rebuild(); }
         function onSortByChanged() { root.rebuild(); }
         function onSortDescendingChanged() { root.rebuild(); }
-        function onShowBadgeChanged() {
-            if (root.showBadge) {
-                root.loadQueues();
-            }
-        }
+
         function onIncludeOrgsChanged() { root.sync(); }
     }
 
@@ -544,11 +541,11 @@ PlasmoidItem {
         return i18n("%1y ago", Math.floor(days / 365));
     }
 
-    // The only timer, and only while the user asked for the badge with an
-    // interval (0 = refresh only when the popup opens). Off by default.
+    // The only timer, and only when the user set a badge interval (0, the
+    // default, means none). It rests while the popup is open.
     Timer {
         interval: Math.max(Plasmoid.configuration.badgeInterval, 1) * 60 * 1000
-        running: root.showBadge && Plasmoid.configuration.badgeInterval > 0 && root.phase === "ready" && !root.expanded
+        running: Plasmoid.configuration.badgeInterval > 0 && root.phase === "ready" && !root.expanded
         repeat: true
         onTriggered: root.loadQueues()
     }

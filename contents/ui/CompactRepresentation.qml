@@ -19,10 +19,9 @@ MouseArea {
         active: compact.containsMouse
     }
 
-    // Badge: reviews waiting plus own merge requests ready to merge, only
-    // when turned on in the settings
+    // Badge: reviews waiting plus own merge requests ready to merge
     Rectangle {
-        visible: compact.widget.showBadge && compact.widget.badgeCount > 0
+        visible: compact.widget.badgeCount > 0
         anchors.top: parent.top
         anchors.right: parent.right
         height: Math.max(Math.round(parent.height * 0.45), badgeLabel.implicitHeight)

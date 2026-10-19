@@ -11,7 +11,6 @@ KCM.SimpleKCM {
     property alias cfg_assignToMe: assignCheck.checked
     property alias cfg_deleteSourceBranch: deleteSourceCheck.checked
     property alias cfg_openAfterCreate: openAfterCheck.checked
-    property alias cfg_showBadge: badgeCheck.checked
     property alias cfg_badgeInterval: badgeIntervalSpin.value
     // Hidden repos of every account; only the active account's are listed here
     property var cfg_hidden: []
@@ -97,23 +96,16 @@ KCM.SimpleKCM {
             Kirigami.FormData.isSection: true
         }
 
-        QQC2.CheckBox {
-            id: badgeCheck
-            Kirigami.FormData.label: i18n("Panel icon:")
-            text: i18n("Show a badge with what waits for me")
-        }
-
         QQC2.Label {
+            Kirigami.FormData.label: i18n("Panel badge:")
             Layout.maximumWidth: Kirigami.Units.gridUnit * 26
             wrapMode: Text.Wrap
-            enabled: badgeCheck.checked
             opacity: 0.7
-            text: i18n("Merge requests waiting for my review, plus my merge requests that are ready to merge.")
+            text: i18n("Counts merge requests waiting for my review, plus my merge requests that are ready to merge. Refreshed when the widget loads, the popup opens or repos sync.")
         }
 
         RowLayout {
-            Kirigami.FormData.label: i18n("Check every:")
-            enabled: badgeCheck.checked
+            Kirigami.FormData.label: i18n("Also check every:")
 
             QQC2.SpinBox {
                 id: badgeIntervalSpin
@@ -125,7 +117,7 @@ KCM.SimpleKCM {
                 valueFromText: text => parseInt(text) || 0
             }
             QQC2.Label {
-                text: badgeIntervalSpin.value === 0 ? i18n("(refreshed when the popup opens)") : ""
+                text: badgeIntervalSpin.value === 0 ? i18n("(no background checks)") : i18n("(while the popup is closed)")
                 opacity: 0.7
             }
         }
