@@ -27,7 +27,12 @@ PlasmaComponents3.ItemDelegate {
     readonly property bool confirming: page.confirmIndex === index
 
     width: ListView.view ? ListView.view.width : implicitWidth
-    highlighted: ListView.isCurrentItem && ListView.view.activeFocus
+    // Same gliding highlight as the repo list; it waits while a panel is open
+    onHoveredChanged: {
+        if (hovered && ListView.view && page.confirmIndex < 0) {
+            ListView.view.currentIndex = index;
+        }
+    }
     leftPadding: Kirigami.Units.largeSpacing
     rightPadding: Kirigami.Units.smallSpacing
     topPadding: Kirigami.Units.smallSpacing * 1.5

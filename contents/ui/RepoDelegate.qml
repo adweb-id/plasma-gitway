@@ -26,7 +26,13 @@ PlasmaComponents3.ItemDelegate {
     signal activated()
 
     width: ListView.view ? ListView.view.width : implicitWidth
-    highlighted: ListView.isCurrentItem
+    // The list's own highlight marks the current row and glides to the
+    // row under the pointer, the way Kickoff does it
+    onHoveredChanged: {
+        if (hovered && ListView.view) {
+            ListView.view.currentIndex = index;
+        }
+    }
     leftPadding: Kirigami.Units.largeSpacing
     rightPadding: Kirigami.Units.smallSpacing
     topPadding: Kirigami.Units.smallSpacing * 1.5

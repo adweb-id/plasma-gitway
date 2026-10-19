@@ -222,7 +222,11 @@ FocusScope {
         required property string shortcut
 
         width: ListView.view ? ListView.view.width : implicitWidth
-        highlighted: ListView.isCurrentItem && page.activeFocus
+        onHoveredChanged: {
+            if (hovered && ListView.view) {
+                ListView.view.currentIndex = index;
+            }
+        }
 
         contentItem: RowLayout {
             spacing: Kirigami.Units.largeSpacing
@@ -327,6 +331,8 @@ FocusScope {
                     Layout.preferredHeight: contentHeight
                     interactive: false
                     keyNavigationEnabled: true
+                    highlightMoveDuration: Kirigami.Units.shortDuration
+                    highlight: PlasmaExtras.Highlight {}
                     focus: true
                     model: 4
                     delegate: ActionRow {

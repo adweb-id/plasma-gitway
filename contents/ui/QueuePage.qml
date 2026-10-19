@@ -180,6 +180,8 @@ FocusScope {
             boundsBehavior: Flickable.StopAtBounds
             keyNavigationEnabled: queuePage.confirmIndex < 0
             highlightMoveDuration: Kirigami.Units.shortDuration
+            highlightResizeDuration: Kirigami.Units.shortDuration
+            highlight: PlasmaExtras.Highlight {}
             model: model
 
             section.property: "section"
