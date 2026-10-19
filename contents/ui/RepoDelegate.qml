@@ -23,7 +23,7 @@ PlasmaComponents3.ItemDelegate {
     contentItem: RowLayout {
         spacing: Kirigami.Units.smallSpacing
 
-        ProviderBadge {
+        ProviderLogo {
             provider: row.widget.account ? row.widget.account.provider : ""
         }
 

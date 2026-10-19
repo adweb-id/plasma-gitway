@@ -41,7 +41,7 @@ PlasmaExtras.Representation {
                 }
 
                 // One list of every account, "user - host"; the popup shows only the chosen one
-                ProviderBadge {
+                ProviderLogo {
                     visible: full.widget.account !== null
                     provider: full.widget.account ? full.widget.account.provider : ""
                 }
@@ -73,7 +73,7 @@ PlasmaExtras.Representation {
                         contentItem: RowLayout {
                             spacing: Kirigami.Units.smallSpacing
 
-                            ProviderBadge {
+                            ProviderLogo {
                                 provider: accountItem.modelData.provider
                             }
                             PlasmaComponents3.Label {
