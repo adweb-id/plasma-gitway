@@ -246,3 +246,175 @@ function errorText(stdout, stderr, exitCode) {
     const lines = (stderr || "").trim().split("\n").filter(l => l.trim() !== "");
     return lines.length > 0 ? lines[lines.length - 1] : "";
 }
+
+// --- Queues across all repos of the account: My MRs, Reviews, Issues -----------
+//
+// kind: "mine" | "reviews" | "issues"
+// Every item: {repoPath, projectId, number, title, url, updatedAt, ...}
+// Merge requests add {source, target, draft, status}; issues add {labels}.
+// status: ready | running | review | failed | conflict | draft
+
+const GH_SEARCH_PRS = "query($q:String!){search(query:$q,type:ISSUE,first:50){nodes{...on PullRequest{"
+    + "number title url isDraft headRefName baseRefName reviewDecision mergeable updatedAt "
+    + "repository{nameWithOwner} commits(last:1){nodes{commit{statusCheckRollup{state}}}}}}}}";
+
+const GH_SEARCH_ISSUES = "query($q:String!){search(query:$q,type:ISSUE,first:50){nodes{...on Issue{"
+    + "number title url updatedAt repository{nameWithOwner} labels(first:5){nodes{name}}}}}}";
+
+function queueCommand(account, kind) {
+    if (account.provider === "gitlab") {
+        const path = {
+            mine: "merge_requests?scope=created_by_me&state=opened&per_page=50",
+            reviews: "merge_requests?scope=all&state=opened&per_page=50&reviewer_username=" + encodeURIComponent(account.user),
+            issues: "issues?scope=assigned_to_me&state=opened&per_page=50"
+        }[kind];
+        return glApi(account, path);
+    }
+    const query = {
+        mine: "is:pr is:open archived:false author:" + account.user,
+        reviews: "is:pr is:open archived:false review-requested:" + account.user,
+        issues: "is:issue is:open archived:false assignee:" + account.user
+    }[kind];
+    return ghScript(account, ghApi("graphql", "-f query=" + q(kind === "issues" ? GH_SEARCH_ISSUES : GH_SEARCH_PRS)
+                                   + " -f q=" + q(query)));
+}
+
+// GitHub: draft, failing or running checks, conflicts and missing approval,
+// in that order. No review required (reviewDecision null) counts as approved.
+function githubStatus(pr) {
+    const commit = pr.commits && pr.commits.nodes.length > 0 ? pr.commits.nodes[0].commit : null;
+    const checks = commit && commit.statusCheckRollup ? commit.statusCheckRollup.state : "";
+    if (pr.isDraft) return "draft";
+    if (checks === "FAILURE" || checks === "ERROR") return "failed";
+    if (pr.mergeable === "CONFLICTING") return "conflict";
+    if (checks === "PENDING" || checks === "EXPECTED") return "running";
+    if (pr.reviewDecision === "REVIEW_REQUIRED" || pr.reviewDecision === "CHANGES_REQUESTED") return "review";
+    return "ready";
+}
+
+// GitLab sums it up in detailed_merge_status
+function gitlabStatus(mr) {
+    switch (mr.detailed_merge_status) {
+    case "mergeable": return "ready";
+    case "draft_status": return "draft";
+    case "ci_still_running": case "checking": case "unchecked": case "preparing": return "running";
+    case "ci_must_pass": return "failed";
+    case "conflict": case "need_rebase": case "broken_status": return "conflict";
+    default: return mr.draft ? "draft" : "review"; // not_approved, discussions_not_resolved, ...
+    }
+}
+
+function parseQueue(account, kind, stdout) {
+    const data = JSON.parse(stdout);
+    if (account.provider === "gitlab") {
+        return data.map(x => {
+            const item = {
+                repoPath: x.references && x.references.full ? x.references.full.replace(/[!#]\d+$/, "") : "",
+                projectId: String(x.project_id), number: x.iid, title: x.title, url: x.web_url,
+                updatedAt: x.updated_at
+            };
+            if (kind === "issues") {
+                item.labels = x.labels || [];
+            } else {
+                item.source = x.source_branch;
+                item.target = x.target_branch;
+                item.draft = !!x.draft;
+                item.status = gitlabStatus(x);
+            }
+            return item;
+        });
+    }
+    return data.data.search.nodes.filter(n => n && n.number).map(n => {
+        const item = {
+            repoPath: n.repository.nameWithOwner, projectId: "", number: n.number, title: n.title,
+            url: n.url, updatedAt: n.updatedAt
+        };
+        if (kind === "issues") {
+            item.labels = n.labels.nodes.map(l => l.name);
+        } else {
+            item.source = n.headRefName;
+            item.target = n.baseRefName;
+            item.draft = !!n.isDraft;
+            item.status = githubStatus(n);
+        }
+        return item;
+    });
+}
+
+// The repo an item belongs to, in the shape the repo calls expect
+function itemRepo(item) {
+    return { id: item.projectId, path: item.repoPath, url: "" };
+}
+
+// --- Merge and approve --------------------------------------------------------------
+
+// Repo defaults for the merge panel: {squash, deleteSource}
+function mergeDefaultsCommand(account, item) {
+    return account.provider === "gitlab"
+        ? glApi(account, "projects/" + item.projectId)
+        : ghScript(account, ghApi("repos/" + item.repoPath));
+}
+
+function parseMergeDefaults(account, stdout) {
+    const data = JSON.parse(stdout);
+    if (account.provider === "gitlab") {
+        return {
+            squash: data.squash_option === "always" || data.squash_option === "default_on",
+            squashLocked: data.squash_option === "always" || data.squash_option === "never",
+            deleteSource: !!data.remove_source_branch_after_merge
+        };
+    }
+    // Squash only when the repo allows nothing else, or allows it and not merge commits
+    return {
+        squash: !!data.allow_squash_merge && !data.allow_merge_commit,
+        squashLocked: !data.allow_squash_merge || (!data.allow_merge_commit && !data.allow_rebase_merge),
+        deleteSource: !!data.delete_branch_on_merge
+    };
+}
+
+// options: {squash, deleteSource}
+function mergeCommand(account, item, options) {
+    if (account.provider === "gitlab") {
+        return glApi(account, "projects/" + item.projectId + "/merge_requests/" + item.number + "/merge",
+                     "-X PUT -F squash=" + options.squash + " -F should_remove_source_branch=" + options.deleteSource);
+    }
+    const merge = ghApi("repos/" + item.repoPath + "/pulls/" + item.number + "/merge",
+                        "-X PUT -f merge_method=" + (options.squash ? "squash" : "merge"));
+    // Deleting the branch is a second call; the merge itself already happened
+    const remove = options.deleteSource
+        ? " && { " + ghApi("repos/" + item.repoPath + "/git/refs/heads/" + branchInPath(item.source), "-X DELETE")
+          + " >/dev/null 2>&1 || true; }"
+        : "";
+    return ghScript(account, "out=$(" + merge + "); rc=$?; [ $rc -eq 0 ]" + remove + "; printf %s \"$out\"; (exit $rc)");
+}
+
+function approveCommand(account, item) {
+    if (account.provider === "gitlab") {
+        return glApi(account, "projects/" + item.projectId + "/merge_requests/" + item.number + "/approve", "-X POST");
+    }
+    return ghScript(account, ghApi("repos/" + item.repoPath + "/pulls/" + item.number + "/reviews", "-f event=APPROVE"));
+}
+
+// --- Open issues of one repo (folded section on the repo page) ----------------------
+
+function repoIssuesCommand(account, repo) {
+    if (account.provider === "gitlab") {
+        return glApi(account, project(repo) + "/issues?state=opened&per_page=50");
+    }
+    return ghScript(account, ghApi("repos/" + repo.path + "/issues?state=open&per_page=50"));
+}
+
+// -> [{number, title, url, labels, assignees}] (GitHub lists pull requests as issues too)
+function parseRepoIssues(account, stdout) {
+    const data = JSON.parse(stdout);
+    if (account.provider === "gitlab") {
+        return data.map(i => ({
+            number: i.iid, title: i.title, url: i.web_url, labels: i.labels || [],
+            assignees: (i.assignees || []).map(a => a.username)
+        }));
+    }
+    return data.filter(i => !i.pull_request).map(i => ({
+        number: i.number, title: i.title, url: i.html_url, labels: (i.labels || []).map(l => l.name),
+        assignees: (i.assignees || []).map(a => a.login)
+    }));
+}

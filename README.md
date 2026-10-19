@@ -4,8 +4,20 @@ A KDE Plasma 6 widget to find a repo, then open a merge/pull request, create a b
 or check your issues in two or three keystrokes. GitHub and GitLab, driven by the
 `gh` and `glab` CLIs. Pure QML + JavaScript, nothing to compile.
 
-> Work in progress. So far: search the repos of one account, open them in the
-> browser, copy links, switch accounts. Merge requests, branches and issues come next.
+> Work in progress: everything below works, polishing and the KDE Store release come next.
+
+- **Search** the repos of one account at a time (`org:`, `private:`, `public:`, `!` for archived),
+  recently opened ones first. Switch accounts from the list in the header.
+- **Repo page**: new merge/pull request, new branch on the remote, open in browser, copy
+  link, the commits of the last pushed branch, open issues and open merge requests.
+- **Merge request form** filled in for you: source is the branch pushed last, target the
+  one you used last in that repo, title the newest commit. Duplicates and empty compares
+  are caught before anything is sent.
+- **My MRs, Reviews and Issues** tabs across all repos, with merge and approve confirmed
+  in place.
+
+Everything goes through `gh api` and `glab api`, so it works for repos that were never
+cloned on this machine.
 
 ## Install from source
 

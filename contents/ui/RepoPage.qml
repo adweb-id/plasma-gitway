@@ -37,6 +37,12 @@ FocusScope {
     readonly property var lastPushed: branches.find(b => b.name !== defaultBranch) || null
     readonly property bool writable: !repo.archived && account && account.status === "ok"
 
+    // Open issues of the repo, folded until asked for
+    property bool issuesOpen: false
+    property var issues: null
+    property bool loadingIssues: false
+    readonly property int assignedToMe: issues ? issues.filter(i => i.assignees.indexOf(account.user) !== -1).length : 0
+
     // Commits of the last pushed branch that are not in the default branch
     property bool commitsOpen: false
     property var compare: null
@@ -49,6 +55,9 @@ FocusScope {
         loadingBranches = true;
         loadingMrs = true;
         compare = null;
+        if (issuesOpen) {
+            loadIssues();
+        }
         widget.run(Forge.branchesCommand(account, repo), (stdout, stderr, exitCode) => {
             loadingBranches = false;
             try {
@@ -77,6 +86,21 @@ FocusScope {
                 mrs = Forge.parseMrs(account, stdout);
             } catch (e) {
                 loadError = full.describeError(e);
+            }
+        });
+    }
+
+    function loadIssues() {
+        if (loadingIssues) {
+            return;
+        }
+        loadingIssues = true;
+        widget.run(Forge.repoIssuesCommand(account, repo), (stdout, stderr, exitCode) => {
+            loadingIssues = false;
+            try {
+                issues = exitCode === 0 ? Forge.parseRepoIssues(account, stdout) : [];
+            } catch (e) {
+                issues = [];
             }
         });
     }
@@ -326,6 +350,73 @@ FocusScope {
             Layout.alignment: Qt.AlignHCenter
             Layout.preferredHeight: Kirigami.Units.iconSizes.medium
             visible: page.commitsOpen && page.loadingCompare
+            running: visible
+        }
+
+        // Open issues of the repo (PRD 4.2), folded like the commits
+        PlasmaComponents3.ItemDelegate {
+            Layout.fillWidth: true
+            onClicked: {
+                page.issuesOpen = !page.issuesOpen;
+                if (page.issuesOpen && !page.issues) {
+                    page.loadIssues();
+                }
+            }
+            contentItem: RowLayout {
+                SvgIcon {
+                    name: page.issuesOpen ? "chevron-down" : "chevron-right"
+                }
+                PlasmaComponents3.Label {
+                    Layout.fillWidth: true
+                    text: !page.issues ? i18n("Open issues")
+                          : i18n("Open issues · %1 · %2 assigned to me", page.issues.length, page.assignedToMe)
+                    elide: Text.ElideRight
+                }
+            }
+        }
+
+        Repeater {
+            model: page.issuesOpen && page.issues ? page.issues.slice(0, 5) : []
+
+            PlasmaComponents3.ItemDelegate {
+                id: issueRow
+                required property var modelData
+                Layout.fillWidth: true
+                Layout.leftMargin: Kirigami.Units.gridUnit * 1.5
+                onClicked: Qt.openUrlExternally(modelData.url)
+                contentItem: RowLayout {
+                    spacing: Kirigami.Units.smallSpacing
+                    PlasmaComponents3.Label {
+                        text: "#" + issueRow.modelData.number
+                        font.family: "monospace"
+                        font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+                        opacity: 0.6
+                    }
+                    PlasmaComponents3.Label {
+                        Layout.fillWidth: true
+                        text: issueRow.modelData.title
+                        elide: Text.ElideRight
+                    }
+                    PlasmaComponents3.Label {
+                        visible: issueRow.modelData.assignees.indexOf(page.account.user) !== -1
+                        text: i18n("you")
+                        font: Kirigami.Theme.smallFont
+                        opacity: 0.6
+                    }
+                }
+            }
+        }
+
+        PlasmaComponents3.ToolButton {
+            visible: page.issuesOpen && page.issues !== null && page.issues.length > 5
+            text: page.issues ? i18n("and %1 more…", page.issues.length - 5) : ""
+            onClicked: Qt.openUrlExternally(page.repo.url + (page.account.provider === "gitlab" ? "/-/issues" : "/issues"))
+        }
+
+        PlasmaComponents3.BusyIndicator {
+            Layout.alignment: Qt.AlignHCenter
+            Layout.preferredHeight: Kirigami.Units.iconSizes.medium
+            visible: page.issuesOpen && page.loadingIssues
             running: visible
         }
 

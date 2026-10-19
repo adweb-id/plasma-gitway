@@ -133,6 +133,7 @@ FocusScope {
                 Qt.openUrlExternally(created.url);
             }
             repoPage.reload();
+            widget.loadQueues();
             full.back();
         });
     }

@@ -180,8 +180,8 @@ PlasmaExtras.Representation {
         anchors.fill: parent
         clip: true
 
-        initialItem: RepoListPage {
-            id: listPage
+        initialItem: HomePage {
+            id: home
             widget: full.widget
             full: full
         }
@@ -229,7 +229,7 @@ PlasmaExtras.Representation {
 
     function backToList() {
         stack.pop(null);
-        listPage.focusSearch();
+        home.showTab(0);
     }
 
     function openAccounts() {
@@ -260,8 +260,8 @@ PlasmaExtras.Representation {
     Connections {
         target: full.widget
         function onExpandedChanged() {
-            if (full.widget.expanded && stack.depth === 1) {
-                listPage.focusSearch();
+            if (full.widget.expanded && stack.depth === 1 && home.current === home.listPage) {
+                home.listPage.focusSearch();
             }
         }
     }

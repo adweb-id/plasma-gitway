@@ -5,6 +5,7 @@ import org.kde.plasma.plasma5support as Plasma5Support
 import org.kde.notification
 
 import "../code/repos.js" as Repos
+import "../code/forge.js" as Forge
 
 PlasmoidItem {
     id: root
@@ -26,6 +27,16 @@ PlasmoidItem {
     property string syncError: ""
 
     property string searchText: ""
+
+    // Merge requests and issues across all repos of the account (tabs My MRs,
+    // Reviews, Issues). Always read from the API, never from a cache.
+    property var mineItems: []
+    property var reviewItems: []
+    property var issueItems: []
+    property var queueLoading: ({ mine: false, reviews: false, issues: false })
+    property var queueErrors: ({ mine: "", reviews: "", issues: "" })
+    property var queuesLoadedAt: null
+    readonly property int queueMaxAge: 60 * 1000 // reopening the popup within a minute keeps them
     readonly property alias repoModel: repoModel
 
     // Text copied most recently; the footer shows a short "Copied" confirmation
@@ -110,7 +121,78 @@ PlasmoidItem {
             if (changed || !repoData) {
                 loadRepos();
             }
+            if (root.expanded && (changed || !queuesLoadedAt || Date.now() - queuesLoadedAt > queueMaxAge)) {
+                loadQueues();
+            }
         });
+    }
+
+    // --- My MRs, Reviews, Issues ------------------------------------------------
+
+    function queueItems(kind) {
+        return kind === "mine" ? mineItems : kind === "reviews" ? reviewItems : issueItems;
+    }
+
+    function loadQueues() {
+        if (!account || account.status !== "ok") {
+            return;
+        }
+        queuesLoadedAt = new Date();
+        for (const kind of ["mine", "reviews", "issues"]) {
+            loadQueue(kind);
+        }
+    }
+
+    function loadQueue(kind) {
+        const forKey = accountKey;
+        setQueueState(kind, true, "");
+        run(Forge.queueCommand(account, kind), (stdout, stderr, exitCode) => {
+            if (forKey !== accountKey) {
+                return;
+            }
+            let items = null;
+            let error = "";
+            try {
+                if (exitCode !== 0) {
+                    throw Forge.errorText(stdout, stderr, exitCode);
+                }
+                items = Forge.parseQueue(account, kind, stdout);
+            } catch (e) {
+                error = e === "TIMEOUT" ? i18n("No response from gh/glab after 30 s")
+                      : e instanceof Error ? e.message : (e || i18n("Unknown error"));
+            }
+            if (items) {
+                if (kind === "mine") {
+                    mineItems = items;
+                } else if (kind === "reviews") {
+                    reviewItems = items;
+                } else {
+                    issueItems = items;
+                }
+            }
+            setQueueState(kind, false, error);
+        });
+    }
+
+    // Replaces the objects so bindings on them update
+    function setQueueState(kind, loading, error) {
+        const nextLoading = Object.assign({}, queueLoading);
+        nextLoading[kind] = loading;
+        queueLoading = nextLoading;
+        const nextErrors = Object.assign({}, queueErrors);
+        nextErrors[kind] = error;
+        queueErrors = nextErrors;
+    }
+
+    function dropQueueItem(kind, item) {
+        const rest = queueItems(kind).filter(i => !(i.repoPath === item.repoPath && i.number === item.number));
+        if (kind === "mine") {
+            mineItems = rest;
+        } else if (kind === "reviews") {
+            reviewItems = rest;
+        } else {
+            issueItems = rest;
+        }
     }
 
     function switchAccount(key) {
@@ -123,8 +205,12 @@ PlasmoidItem {
         repoData = null;
         syncError = "";
         searchText = "";
+        mineItems = [];
+        reviewItems = [];
+        issueItems = [];
         rebuild();
         loadRepos();
+        loadQueues();
     }
 
     // --- Repo list -------------------------------------------------------------
