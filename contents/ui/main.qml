@@ -296,7 +296,8 @@ PlasmoidItem {
         const recent = Repos.recentFor(Plasmoid.configuration.recent, accountKey);
         const rows = Repos.buildRows(repos, searchText, recent, Plasmoid.configuration.hideArchived,
                                      Repos.recentFor(Plasmoid.configuration.pinned, accountKey),
-                                     Repos.recentFor(Plasmoid.configuration.hidden, accountKey));
+                                     Repos.recentFor(Plasmoid.configuration.hidden, accountKey),
+                                     { by: Plasmoid.configuration.sortBy, descending: Plasmoid.configuration.sortDescending });
         // Replace in place so the list keeps its scroll position while typing
         while (repoModel.count > rows.length) {
             repoModel.remove(repoModel.count - 1);
@@ -318,6 +319,8 @@ PlasmoidItem {
         function onRecentChanged() { root.rebuild(); }
         function onPinnedChanged() { root.rebuild(); }
         function onHiddenChanged() { root.rebuild(); }
+        function onSortByChanged() { root.rebuild(); }
+        function onSortDescendingChanged() { root.rebuild(); }
         function onIncludeOrgsChanged() { root.sync(); }
     }
 

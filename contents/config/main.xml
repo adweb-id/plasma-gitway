@@ -13,6 +13,13 @@
     <entry name="recent" type="StringList">
       <default></default>
     </entry>
+    <!-- Order of "All repos": pushed (last updated) or name -->
+    <entry name="sortBy" type="String">
+      <default>pushed</default>
+    </entry>
+    <entry name="sortDescending" type="Bool">
+      <default>true</default>
+    </entry>
     <entry name="hideArchived" type="Bool">
       <default>true</default>
     </entry>

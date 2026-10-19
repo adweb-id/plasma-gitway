@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls as QQC2
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
+import org.kde.plasma.plasmoid
 import org.kde.plasma.components as PlasmaComponents3
 import org.kde.plasma.extras as PlasmaExtras
 
@@ -17,19 +18,39 @@ FocusScope {
     readonly property string status: widget.repoData
         ? i18n("%1 repos · synced %2", widget.repoCount, widget.ago(widget.repoData.synced_at)) : ""
 
+    // Order of "All repos", chosen from the button next to the search field
+    readonly property var sortChoices: [
+        { by: "pushed", descending: true, label: i18n("Last updated, newest first"), short: i18n("newest first") },
+        { by: "pushed", descending: false, label: i18n("Last updated, oldest first"), short: i18n("oldest first") },
+        { by: "name", descending: false, label: i18n("Name, A to Z"), short: i18n("A→Z") },
+        { by: "name", descending: true, label: i18n("Name, Z to A"), short: i18n("Z→A") }
+    ]
+    readonly property var sortChoice: sortChoices.find(c => c.by === Plasmoid.configuration.sortBy
+                                                          && c.descending === Plasmoid.configuration.sortDescending)
+                                      || sortChoices[0]
+
+    function setSort(choice) {
+        Plasmoid.configuration.sortBy = choice.by;
+        Plasmoid.configuration.sortDescending = choice.descending;
+    }
+
     ColumnLayout {
         anchors.fill: parent
         spacing: 0
 
-        PlasmaExtras.SearchField {
-            id: searchField
-            objectName: "searchField"
+        RowLayout {
             Layout.fillWidth: true
             Layout.leftMargin: Kirigami.Units.largeSpacing
             Layout.rightMargin: Kirigami.Units.largeSpacing
             Layout.topMargin: Kirigami.Units.largeSpacing
             Layout.bottomMargin: Kirigami.Units.smallSpacing
+            spacing: Kirigami.Units.smallSpacing
             visible: page.hasList
+
+        PlasmaExtras.SearchField {
+            id: searchField
+            objectName: "searchField"
+            Layout.fillWidth: true
             focus: true
             placeholderText: i18n("Search repos…  (org:  private:  public:  ! hidden)")
             text: page.widget.searchText
@@ -51,6 +72,44 @@ FocusScope {
             Keys.onEnterPressed: event => page.enter(event)
             // The same actions as the single keys in the list, with Ctrl
             Keys.onPressed: event => page.handleCtrlKey(event)
+        }
+
+        IconButton {
+            id: sortButton
+            iconName: "sort"
+            toolTip: i18n("Sort all repos: %1", page.sortChoice.label)
+            onClicked: sortMenu.popup(sortButton, 0, sortButton.height)
+        }
+        }
+
+        PlasmaComponents3.Menu {
+            id: sortMenu
+
+            PlasmaComponents3.MenuItem {
+                text: page.sortChoices[0].label
+                checkable: true
+                checked: page.sortChoice === page.sortChoices[0]
+                onTriggered: page.setSort(page.sortChoices[0])
+            }
+            PlasmaComponents3.MenuItem {
+                text: page.sortChoices[1].label
+                checkable: true
+                checked: page.sortChoice === page.sortChoices[1]
+                onTriggered: page.setSort(page.sortChoices[1])
+            }
+            PlasmaComponents3.MenuSeparator {}
+            PlasmaComponents3.MenuItem {
+                text: page.sortChoices[2].label
+                checkable: true
+                checked: page.sortChoice === page.sortChoices[2]
+                onTriggered: page.setSort(page.sortChoices[2])
+            }
+            PlasmaComponents3.MenuItem {
+                text: page.sortChoices[3].label
+                checkable: true
+                checked: page.sortChoice === page.sortChoices[3]
+                onTriggered: page.setSort(page.sortChoices[3])
+            }
         }
 
         PlasmaComponents3.ScrollView {
@@ -76,7 +135,8 @@ FocusScope {
                     required property string section
                     width: ListView.view.width
                     topPadding: Kirigami.Units.largeSpacing
-                    text: section === "pinned" ? i18n("Pinned") : section === "recent" ? i18n("Recent") : i18n("All repos")
+                    text: section === "pinned" ? i18n("Pinned") : section === "recent" ? i18n("Recent")
+                          : i18n("All repos · %1", page.sortChoice.short)
                 }
 
                 // Keyboard: Up/Down select, Enter opens the repo page, M (or

@@ -110,11 +110,20 @@ function matches(repo, query, hideArchived, hidden) {
     return query.words.every(w => path.includes(w));
 }
 
+// Order of the "All repos" section. by: "pushed" | "name"
+function compareRepos(a, b, by, descending) {
+    const order = by === "name"
+        ? a.name.toLowerCase().localeCompare(b.name.toLowerCase()) || a.path.localeCompare(b.path)
+        : (a.pushed_at || "").localeCompare(b.pushed_at || "");
+    return descending ? -order : order;
+}
+
 // Rows for the list, each with a "section": pinned repos first (in the
 // order they were pinned), then recently opened ones (most recent first),
-// then the rest by last push. While searching, a repo whose own name
-// starts with the first word goes before the others.
-function buildRows(repos, text, recentPaths, hideArchived, pinnedPaths, hidden) {
+// then the rest in the chosen sort order (sort: {by, descending}). While
+// searching, a repo whose own name starts with the first word goes first.
+function buildRows(repos, text, recentPaths, hideArchived, pinnedPaths, hidden, sort) {
+    sort = sort || { by: "pushed", descending: true };
     const query = parseQuery(text);
     const pinRank = {};
     pinnedPaths.forEach((path, i) => pinRank[path] = i);
@@ -134,7 +143,7 @@ function buildRows(repos, text, recentPaths, hideArchived, pinnedPaths, hidden) 
     recentShown.forEach(r => inRecent[r.path] = true);
 
     const rest = shown.filter(r => !inRecent[r.path] && pinRank[r.path] === undefined)
-        .sort((a, b) => (b.pushed_at || "").localeCompare(a.pushed_at || ""));
+        .sort((a, b) => compareRepos(a, b, sort.by, sort.descending));
     if (first) {
         rest.sort((a, b) => {
             const aHit = a.name.toLowerCase().startsWith(first);
