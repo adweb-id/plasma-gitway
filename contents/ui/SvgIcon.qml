@@ -9,7 +9,7 @@ Kirigami.Icon {
 
     implicitWidth: Kirigami.Units.iconSizes.small
     implicitHeight: implicitWidth
-    source: Qt.resolvedUrl("../icons/" + name + ".svg")
+    source: Qt.resolvedUrl("../icons/gitway-" + name + ".svg")
     isMask: true
     color: Kirigami.Theme.textColor
 }

@@ -7,6 +7,9 @@ KCM.SimpleKCM {
     property alias cfg_hideArchived: archivedCheck.checked
     property alias cfg_includeOrgs: orgsCheck.checked
     property alias cfg_syncOnOpen: syncOnOpenCheck.checked
+    property alias cfg_assignToMe: assignCheck.checked
+    property alias cfg_deleteSourceBranch: deleteSourceCheck.checked
+    property alias cfg_openAfterCreate: openAfterCheck.checked
 
     Kirigami.FormLayout {
         QQC2.CheckBox {
@@ -23,6 +26,26 @@ KCM.SimpleKCM {
         QQC2.CheckBox {
             id: syncOnOpenCheck
             text: i18n("Sync repos when opening, at most once an hour")
+        }
+
+        Item {
+            Kirigami.FormData.isSection: true
+        }
+
+        QQC2.CheckBox {
+            id: openAfterCheck
+            Kirigami.FormData.label: i18n("New merge requests:")
+            text: i18n("Open in the browser after creating")
+        }
+
+        QQC2.CheckBox {
+            id: assignCheck
+            text: i18n("Assign to me")
+        }
+
+        QQC2.CheckBox {
+            id: deleteSourceCheck
+            text: i18n("Delete the source branch after merge (GitLab)")
         }
     }
 }

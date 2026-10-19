@@ -2,6 +2,7 @@ import QtQuick
 import org.kde.plasma.plasmoid
 import org.kde.plasma.core as PlasmaCore
 import org.kde.plasma.plasma5support as Plasma5Support
+import org.kde.notification
 
 import "../code/repos.js" as Repos
 
@@ -63,6 +64,15 @@ PlasmoidItem {
                 callback(data["stdout"] || "", data["stderr"] || "", data["exit code"]);
             }
         }
+    }
+
+    // For calls the pages make: never deduplicated, since two pages may ask the
+    // same thing. The trailing shell comment keeps each data source unique.
+    property int runCounter: 0
+
+    function run(command, callback) {
+        runCounter++;
+        exec(command + " # " + runCounter, callback);
     }
 
     function exec(command, callback) {
@@ -210,6 +220,27 @@ PlasmoidItem {
         root.expanded = false;
     }
 
+    // The row as a plain object, for pages that outlive a model rebuild
+    function rowAt(index) {
+        if (index < 0 || index >= repoModel.count) {
+            return null;
+        }
+        const item = repoModel.get(index);
+        const row = {};
+        for (const key of ["id", "path", "owner", "name", "url", "ssh", "https", "visibility", "archived", "defaultBranch", "pushedAt"]) {
+            row[key] = item[key];
+        }
+        return row;
+    }
+
+    function lastTarget(path) {
+        return Repos.lastTarget(Plasmoid.configuration.lastTargets, accountKey, path);
+    }
+
+    function setLastTarget(path, branch) {
+        Plasmoid.configuration.lastTargets = Repos.setLastTarget(Plasmoid.configuration.lastTargets, accountKey, path, branch, 200);
+    }
+
     // kind: "url" | "ssh" | "https"
     function copyRepo(index, kind) {
         if (index < 0 || index >= repoModel.count) {
@@ -241,6 +272,38 @@ PlasmoidItem {
         id: copiedReset
         interval: 1500
         onTriggered: root.lastCopied = ""
+    }
+
+    // Sends one desktop notification, optionally with a single action button
+    function notify(title, text, actionLabel, onAction) {
+        const n = notificationComponent.createObject(root, {
+            title: title,
+            text: text,
+            iconName: "vcs-merge"
+        });
+        if (actionLabel && onAction) {
+            const action = actionComponent.createObject(n, { label: actionLabel });
+            action.activated.connect(onAction);
+            n.actions = [action];
+        }
+        n.closed.connect(() => n.destroy());
+        n.sendEvent();
+    }
+
+    Component {
+        id: notificationComponent
+
+        Notification {
+            componentName: "plasma_workspace"
+            eventId: "notification"
+            autoDelete: false // QML owns it; destroyed when closed
+        }
+    }
+
+    Component {
+        id: actionComponent
+
+        NotificationAction {}
     }
 
     // "3h ago", "yesterday", "4d ago" for the right column of a row

@@ -3,7 +3,7 @@ import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import org.kde.plasma.components as PlasmaComponents3
 
-// One repo:  [GL]  owner/group/name 🔒 [archived]        3d ago
+// One repo:  [logo]  owner/group/name 🔒 [archived]        3d ago
 PlasmaComponents3.ItemDelegate {
     id: row
 
@@ -16,6 +16,9 @@ PlasmaComponents3.ItemDelegate {
     required property string visibility
     required property bool archived
     required property string pushedAt
+
+    // Click or Enter: the repo page (the list decides what that means)
+    signal activated()
 
     width: ListView.view ? ListView.view.width : implicitWidth
     highlighted: ListView.isCurrentItem
@@ -57,7 +60,7 @@ PlasmaComponents3.ItemDelegate {
         }
     }
 
-    onClicked: widget.openRepo(index)
+    onClicked: activated()
 
     TapHandler {
         acceptedButtons: Qt.RightButton

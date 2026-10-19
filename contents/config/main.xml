@@ -19,6 +19,20 @@
     <entry name="includeOrgs" type="Bool">
       <default>true</default>
     </entry>
+    <!-- Target branch last used per repo: "provider/host/user<TAB>owner/repo<TAB>branch" -->
+    <entry name="lastTargets" type="StringList">
+      <default></default>
+    </entry>
+    <!-- Defaults of the merge request form -->
+    <entry name="assignToMe" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="deleteSourceBranch" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="openAfterCreate" type="Bool">
+      <default>true</default>
+    </entry>
     <!-- Sync when the popup opens and the list is older than an hour -->
     <entry name="syncOnOpen" type="Bool">
       <default>false</default>

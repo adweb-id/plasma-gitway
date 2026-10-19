@@ -138,6 +138,7 @@ function toRow(repo, section) {
     const slash = repo.path.lastIndexOf("/");
     return {
         section: section,
+        id: repo.id,
         path: repo.path,
         owner: repo.path.slice(0, slash + 1),
         name: repo.path.slice(slash + 1),
@@ -146,8 +147,22 @@ function toRow(repo, section) {
         https: repo.https || "",
         visibility: repo.visibility || "public",
         archived: !!repo.archived,
+        defaultBranch: repo.default_branch || "",
         pushedAt: repo.pushed_at || ""
     };
+}
+
+// Target branch last used for a merge request, per account and repo:
+// entries are "account<TAB>owner/repo<TAB>branch".
+function lastTarget(entries, key, path) {
+    const prefix = key + "\t" + path + "\t";
+    const entry = entries.find(e => e.startsWith(prefix));
+    return entry ? entry.slice(prefix.length) : "";
+}
+
+function setLastTarget(entries, key, path, branch, max) {
+    const prefix = key + "\t" + path + "\t";
+    return [prefix + branch].concat(entries.filter(e => !e.startsWith(prefix))).slice(0, max);
 }
 
 // Recent list entries are "account<TAB>owner/repo", newest first.
