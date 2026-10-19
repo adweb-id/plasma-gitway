@@ -166,7 +166,10 @@ function createMrCommand(account, repo, form) {
         ? " && { timeout " + TIMEOUT + " gh api " + assignPath + " -f 'assignees[]='" + q(account.user)
           + " >/dev/null || true; }"
         : "";
-    return ghScript(account, "out=$(" + create + ")" + assign + " && printf %s \"$out\"");
+    // $out is printed on failure too: it holds GitHub's reason, e.g.
+    // "A pull request already exists for adweb-id:test/smoke."
+    return ghScript(account, "out=$(" + create + "); rc=$?; [ $rc -eq 0 ]" + assign
+                    + "; printf %s \"$out\"; (exit $rc)");
 }
 
 // -> {number, url}
