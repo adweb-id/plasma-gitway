@@ -1,0 +1,22 @@
+{
+    "KPackageStructure": "Plasma/Applet",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "ADWeb",
+                "Email": "hello@addin.web.id"
+            }
+        ],
+        "BugReportUrl": "https://github.com/adweb-id/plasma-gitway/issues",
+        "Category": "Utilities",
+        "Copyright": "© 2026 ADWeb",
+        "Description": "Find a GitHub or GitLab repo, then open a merge request, create a branch or check your issues",
+        "Icon": "vcs-merge",
+        "Id": "com.adweb.gitway",
+        "License": "GPL-3.0-or-later",
+        "Name": "Gitway",
+        "Version": "0.1.0",
+        "Website": "https://github.com/adweb-id/plasma-gitway"
+    },
+    "X-Plasma-API-Minimum-Version": "6.0"
+}

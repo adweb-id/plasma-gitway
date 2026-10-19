@@ -3,6 +3,7 @@
 # writes the repo list of one account to its own repos.json.
 #
 #   sync-repos.sh accounts
+#   sync-repos.sh read <github|gitlab> <host> <user>
 #   sync-repos.sh sync <github|gitlab> <host> <user> [--no-orgs] [--glab-config DIR]
 #
 # stdout is always JSON. Errors go to stderr with a non-zero exit, and an
@@ -124,9 +125,18 @@ cmd_sync() {
     jq -c --arg file "$dir/repos.json" '{ok: true, file: $file, count: .count}' "$dir/repos.json"
 }
 
+# Prints the cached repos.json of one account. Exit 3 when it was never synced.
+cmd_read() {
+    local file="$DATA_DIR/accounts/$1/$2/$3/repos.json"
+    [[ -f $file ]] || { printf 'gitway: %s was never synced\n' "$3@$2" >&2; exit 3; }
+    cat "$file"
+}
+
 case ${1:-} in
     accounts) cmd_accounts ;;
+    read) (($# == 4)) || die "usage: sync-repos.sh read <github|gitlab> <host> <user>"
+          shift; cmd_read "$@" ;;
     sync) (($# >= 4)) || die "usage: sync-repos.sh sync <github|gitlab> <host> <user> [--no-orgs] [--glab-config DIR]"
           shift; cmd_sync "$@" ;;
-    *) die "usage: sync-repos.sh accounts | sync <github|gitlab> <host> <user> [options]" ;;
+    *) die "usage: sync-repos.sh accounts | read <provider> <host> <user> | sync <github|gitlab> <host> <user> [options]" ;;
 esac

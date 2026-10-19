@@ -4,7 +4,18 @@ A KDE Plasma 6 widget to find a repo, then open a merge/pull request, create a b
 or check your issues in two or three keystrokes. GitHub and GitLab, driven by the
 `gh` and `glab` CLIs. Pure QML + JavaScript, nothing to compile.
 
-> Work in progress. Only the repo sync script exists so far.
+> Work in progress. So far: search the repos of one account, open them in the
+> browser, copy links, switch accounts. Merge requests, branches and issues come next.
+
+## Install from source
+
+```sh
+kpackagetool6 -t Plasma/Applet -i .   # first time
+kpackagetool6 -t Plasma/Applet -u .   # after changes
+```
+
+Then add **Gitway** to a panel. The popup shows one account at a time. Pick another
+one from the account list in its header (`A` or `Ctrl+Shift+A`).
 
 ## Requirements
 
