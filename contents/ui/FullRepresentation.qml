@@ -179,6 +179,27 @@ PlasmaExtras.Representation {
         anchors.fill: parent
         clip: true
 
+        // Deeper pages slide in from the right and fade; going back reverses it.
+        // Kirigami's durations are 0 when the user turned animations off.
+        readonly property int slide: Kirigami.Units.gridUnit * 2
+
+        pushEnter: Transition {
+            NumberAnimation { property: "x"; from: stack.slide; to: 0; duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic }
+            NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic }
+        }
+        pushExit: Transition {
+            NumberAnimation { property: "x"; from: 0; to: -stack.slide / 2; duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic }
+            NumberAnimation { property: "opacity"; from: 1; to: 0; duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic }
+        }
+        popEnter: Transition {
+            NumberAnimation { property: "x"; from: -stack.slide / 2; to: 0; duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic }
+            NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic }
+        }
+        popExit: Transition {
+            NumberAnimation { property: "x"; from: 0; to: stack.slide; duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic }
+            NumberAnimation { property: "opacity"; from: 1; to: 0; duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic }
+        }
+
         initialItem: HomePage {
             id: home
             widget: full.widget

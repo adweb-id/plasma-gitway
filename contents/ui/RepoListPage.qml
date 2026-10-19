@@ -25,7 +25,10 @@ FocusScope {
             id: searchField
             objectName: "searchField"
             Layout.fillWidth: true
-            Layout.margins: Kirigami.Units.smallSpacing
+            Layout.leftMargin: Kirigami.Units.largeSpacing
+            Layout.rightMargin: Kirigami.Units.largeSpacing
+            Layout.topMargin: Kirigami.Units.largeSpacing
+            Layout.bottomMargin: Kirigami.Units.smallSpacing
             visible: page.hasList
             focus: true
             placeholderText: i18n("Search repos…  (org:  private:  public:  ! hidden)")
@@ -53,6 +56,8 @@ FocusScope {
         PlasmaComponents3.ScrollView {
             Layout.fillWidth: true
             Layout.fillHeight: true
+            Layout.leftMargin: Kirigami.Units.smallSpacing
+            Layout.rightMargin: Kirigami.Units.smallSpacing
             visible: page.hasList && list.count > 0
 
             contentItem: ListView {
@@ -62,13 +67,15 @@ FocusScope {
                 clip: true
                 boundsBehavior: Flickable.StopAtBounds
                 keyNavigationEnabled: true
-                highlightMoveDuration: 0
+                highlightMoveDuration: Kirigami.Units.shortDuration
+                highlightResizeDuration: 0
                 highlight: PlasmaExtras.Highlight {}
 
                 section.property: "section"
                 section.delegate: PlasmaExtras.ListSectionHeader {
                     required property string section
                     width: ListView.view.width
+                    topPadding: Kirigami.Units.largeSpacing
                     text: section === "pinned" ? i18n("Pinned") : section === "recent" ? i18n("Recent") : i18n("All repos")
                 }
 

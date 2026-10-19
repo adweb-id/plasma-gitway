@@ -27,6 +27,10 @@ PlasmaComponents3.ItemDelegate {
 
     width: ListView.view ? ListView.view.width : implicitWidth
     highlighted: ListView.isCurrentItem
+    leftPadding: Kirigami.Units.largeSpacing
+    rightPadding: Kirigami.Units.smallSpacing
+    topPadding: Kirigami.Units.smallSpacing * 1.5
+    bottomPadding: Kirigami.Units.smallSpacing * 1.5
 
     contentItem: RowLayout {
         spacing: Kirigami.Units.smallSpacing
@@ -86,6 +90,9 @@ PlasmaComponents3.ItemDelegate {
             iconName: row.pinned ? "pin-filled" : "pin"
             toolTip: row.pinned ? i18n("Unpin (P)") : i18n("Pin to the top (P)")
             opacity: row.pinned || row.hovered || hovered ? 1 : 0
+            Behavior on opacity {
+                NumberAnimation { duration: Kirigami.Units.shortDuration }
+            }
             onClicked: row.widget.togglePin(row.index)
         }
     }

@@ -27,13 +27,15 @@ PlasmaComponents3.ToolButton {
             anchors.centerIn: parent
             name: button.iconName
 
+            // Runs to the end of the current turn when the sync stops, so the
+            // icon never snaps back mid-turn
             RotationAnimator on rotation {
                 running: button.spinning
                 from: 0
                 to: 360
                 duration: 1000
                 loops: Animation.Infinite
-                onStopped: icon.rotation = 0
+                alwaysRunToEnd: true
             }
         }
     }

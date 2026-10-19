@@ -19,8 +19,35 @@ FocusScope {
 
     readonly property var kinds: ["mine", "reviews", "issues"]
 
+    ParallelAnimation {
+        id: tabEnter
+        property alias from: tabShift.from
+
+        NumberAnimation {
+            id: tabShift
+            target: tabOffset
+            property: "x"
+            to: 0
+            duration: Kirigami.Units.longDuration
+            easing.type: Easing.OutCubic
+        }
+        NumberAnimation {
+            target: tabPages
+            property: "opacity"
+            from: 0
+            to: 1
+            duration: Kirigami.Units.longDuration
+            easing.type: Easing.OutCubic
+        }
+    }
+
     function showTab(index) {
-        tabs.currentIndex = Math.max(0, Math.min(index, 3));
+        const next = Math.max(0, Math.min(index, 3));
+        if (next !== tabs.currentIndex) {
+            tabShift.from = (next > tabs.currentIndex ? 1 : -1) * Kirigami.Units.gridUnit;
+            tabEnter.restart();
+        }
+        tabs.currentIndex = next;
         if (tabs.currentIndex === 0) {
             listPage.focusSearch();
         } else {
@@ -52,6 +79,9 @@ FocusScope {
         PlasmaComponents3.TabBar {
             id: tabs
             Layout.fillWidth: true
+            Layout.leftMargin: Kirigami.Units.largeSpacing
+            Layout.rightMargin: Kirigami.Units.largeSpacing
+            Layout.topMargin: Kirigami.Units.smallSpacing
             enabled: !home.busy
 
             PlasmaComponents3.TabButton {
@@ -74,9 +104,11 @@ FocusScope {
         }
 
         StackLayout {
+            id: tabPages
             Layout.fillWidth: true
             Layout.fillHeight: true
             currentIndex: tabs.currentIndex
+            transform: Translate { id: tabOffset }
 
             RepoListPage {
                 id: listPage

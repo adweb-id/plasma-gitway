@@ -28,6 +28,10 @@ PlasmaComponents3.ItemDelegate {
 
     width: ListView.view ? ListView.view.width : implicitWidth
     highlighted: ListView.isCurrentItem && ListView.view.activeFocus
+    leftPadding: Kirigami.Units.largeSpacing
+    rightPadding: Kirigami.Units.smallSpacing
+    topPadding: Kirigami.Units.smallSpacing * 1.5
+    bottomPadding: Kirigami.Units.smallSpacing * 1.5
     onClicked: Qt.openUrlExternally(item.url)
 
     contentItem: ColumnLayout {
@@ -84,10 +88,24 @@ PlasmaComponents3.ItemDelegate {
             }
         }
 
-        // Confirmation panel: repeats the facts, then one button
-        Rectangle {
+        // Confirmation panel: repeats the facts, then one button. It grows
+        // out of the row and shrinks back instead of popping in.
+        Item {
             Layout.fillWidth: true
-            visible: row.confirming
+            Layout.preferredHeight: row.confirming ? panelBox.implicitHeight : 0
+            visible: Layout.preferredHeight > 0
+            clip: true
+            opacity: row.confirming ? 1 : 0
+            Behavior on Layout.preferredHeight {
+                NumberAnimation { duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic }
+            }
+            Behavior on opacity {
+                NumberAnimation { duration: Kirigami.Units.longDuration }
+            }
+
+        Rectangle {
+            id: panelBox
+            width: parent.width
             implicitHeight: panel.implicitHeight + Kirigami.Units.largeSpacing * 2
             radius: Kirigami.Units.cornerRadius
             color: row.tint(0.12)
@@ -158,6 +176,7 @@ PlasmaComponents3.ItemDelegate {
                     }
                 }
             }
+        }
         }
     }
 

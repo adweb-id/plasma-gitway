@@ -168,6 +168,9 @@ FocusScope {
 
     PlasmaComponents3.ScrollView {
         anchors.fill: parent
+        anchors.leftMargin: Kirigami.Units.smallSpacing
+        anchors.rightMargin: Kirigami.Units.smallSpacing
+        anchors.topMargin: Kirigami.Units.smallSpacing
         visible: model.count > 0
 
         contentItem: ListView {
@@ -176,13 +179,14 @@ FocusScope {
             clip: true
             boundsBehavior: Flickable.StopAtBounds
             keyNavigationEnabled: queuePage.confirmIndex < 0
-            highlightMoveDuration: 0
+            highlightMoveDuration: Kirigami.Units.shortDuration
             model: model
 
             section.property: "section"
             section.delegate: PlasmaExtras.ListSectionHeader {
                 required property string section
                 width: ListView.view.width
+                topPadding: Kirigami.Units.largeSpacing
                 text: section
             }
 

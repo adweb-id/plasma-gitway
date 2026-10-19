@@ -164,6 +164,44 @@ FocusScope {
         event.accepted = true;
     }
 
+    // A folded section's body: its height opens and closes smoothly, and the
+    // content stays in place while it closes so nothing pops out
+    component Fold: Item {
+        id: fold
+
+        property bool open: false
+        default property alias content: box.data
+
+        Layout.fillWidth: true
+        Layout.preferredHeight: open ? box.implicitHeight : 0
+        visible: Layout.preferredHeight > 0
+        clip: true
+        opacity: open ? 1 : 0
+
+        Behavior on Layout.preferredHeight {
+            NumberAnimation { duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic }
+        }
+        Behavior on opacity {
+            NumberAnimation { duration: Kirigami.Units.longDuration }
+        }
+
+        ColumnLayout {
+            id: box
+            width: fold.width
+            spacing: 0
+        }
+    }
+
+    // The chevron of a folded section turns instead of swapping icons
+    component FoldChevron: SvgIcon {
+        property bool open: false
+        name: "chevron-right"
+        rotation: open ? 90 : 0
+        Behavior on rotation {
+            NumberAnimation { duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic }
+        }
+    }
+
     // One action: icon, title, one line of detail, and its key on the right
     component ActionRow: PlasmaComponents3.ItemDelegate {
         id: action
@@ -213,7 +251,7 @@ FocusScope {
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: Kirigami.Units.smallSpacing
+        anchors.margins: Kirigami.Units.largeSpacing
         spacing: Kirigami.Units.smallSpacing
 
         RowLayout {
@@ -261,192 +299,208 @@ FocusScope {
             ]
         }
 
-        ListView {
-            id: actions
-            Layout.fillWidth: true
-            Layout.preferredHeight: contentHeight
-            interactive: false
-            keyNavigationEnabled: true
-            focus: true
-            model: 4
-            delegate: ActionRow {
-                required property int index
-
-                iconName: ["merge", "branch", "external", "copy"][index]
-                title: [i18n("New %1", page.account && page.account.provider === "gitlab" ? i18n("merge request") : i18n("pull request")),
-                        i18n("New branch"), i18n("Open in browser"), i18n("Copy link")][index]
-                detail: [
-                    !page.writable ? i18n("Not available for this repo")
-                        : page.loadingBranches ? i18n("Loading branches…")
-                        : page.lastPushed ? i18n("%1 → %2", page.lastPushed.name, page.defaultBranch)
-                        : i18n("No other branches yet"),
-                    page.defaultBranch ? i18n("Create on the remote from %1", page.defaultBranch) : i18n("Loading branches…"),
-                    page.account && page.account.provider === "gitlab" ? i18n("Repository page on GitLab") : i18n("Repository page on GitHub"),
-                    i18n("Web URL · Shift+C SSH · Alt+C HTTPS")
-                ][index]
-                shortcut: ["Ctrl+Enter", "B", "O", "C"][index]
-                enabled: index === 0 ? page.writable && page.branches.length > 1
-                         : index === 1 ? page.writable && page.branches.length > 0 : true
-                onClicked: {
-                    actions.currentIndex = index;
-                    [page.newMr, page.newBranch, () => Qt.openUrlExternally(page.repo.url), () => page.copy("url")][index]();
-                }
-            }
-        }
-
-        // Commits of the last pushed branch, folded until asked for (mockup 4.11)
-        PlasmaComponents3.ItemDelegate {
-            Layout.fillWidth: true
-            visible: page.lastPushed !== null
-            onClicked: {
-                page.commitsOpen = !page.commitsOpen;
-                if (page.commitsOpen && !page.compare) {
-                    page.loadCompare();
-                }
-            }
-            contentItem: RowLayout {
-                SvgIcon {
-                    name: page.commitsOpen ? "chevron-down" : "chevron-right"
-                }
-                PlasmaComponents3.Label {
-                    Layout.fillWidth: true
-                    text: !page.lastPushed ? ""
-                          : page.compare ? i18n("Recent commits on %1 · %2 since %3", page.lastPushed.name, page.compare.ahead, page.defaultBranch)
-                          : i18n("Recent commits on %1", page.lastPushed.name)
-                    elide: Text.ElideRight
-                }
-            }
-        }
-
-        Repeater {
-            model: page.commitsOpen && page.compare ? page.compare.commits.slice(0, 5) : []
-
-            RowLayout {
-                required property var modelData
-                Layout.fillWidth: true
-                Layout.leftMargin: Kirigami.Units.gridUnit * 1.5
-                spacing: Kirigami.Units.smallSpacing
-
-                PlasmaComponents3.Label {
-                    text: modelData.sha.slice(0, 7)
-                    font.family: "monospace"
-                    font.pixelSize: Kirigami.Theme.smallFont.pixelSize
-                    opacity: 0.6
-                }
-                PlasmaComponents3.Label {
-                    Layout.fillWidth: true
-                    text: modelData.title
-                    elide: Text.ElideRight
-                }
-                PlasmaComponents3.Label {
-                    text: page.widget.ago(modelData.date)
-                    font: Kirigami.Theme.smallFont
-                    opacity: 0.6
-                }
-            }
-        }
-
-        PlasmaComponents3.BusyIndicator {
-            Layout.alignment: Qt.AlignHCenter
-            Layout.preferredHeight: Kirigami.Units.iconSizes.medium
-            visible: page.commitsOpen && page.loadingCompare
-            running: visible
-        }
-
-        // Open issues of the repo (PRD 4.2), folded like the commits
-        PlasmaComponents3.ItemDelegate {
-            Layout.fillWidth: true
-            onClicked: {
-                page.issuesOpen = !page.issuesOpen;
-                if (page.issuesOpen && !page.issues) {
-                    page.loadIssues();
-                }
-            }
-            contentItem: RowLayout {
-                SvgIcon {
-                    name: page.issuesOpen ? "chevron-down" : "chevron-right"
-                }
-                PlasmaComponents3.Label {
-                    Layout.fillWidth: true
-                    text: !page.issues ? i18n("Open issues")
-                          : i18n("Open issues · %1 · %2 assigned to me", page.issues.length, page.assignedToMe)
-                    elide: Text.ElideRight
-                }
-            }
-        }
-
-        Repeater {
-            model: page.issuesOpen && page.issues ? page.issues.slice(0, 5) : []
-
-            PlasmaComponents3.ItemDelegate {
-                id: issueRow
-                required property var modelData
-                Layout.fillWidth: true
-                Layout.leftMargin: Kirigami.Units.gridUnit * 1.5
-                onClicked: Qt.openUrlExternally(modelData.url)
-                contentItem: RowLayout {
-                    spacing: Kirigami.Units.smallSpacing
-                    PlasmaComponents3.Label {
-                        text: "#" + issueRow.modelData.number
-                        font.family: "monospace"
-                        font.pixelSize: Kirigami.Theme.smallFont.pixelSize
-                        opacity: 0.6
-                    }
-                    PlasmaComponents3.Label {
-                        Layout.fillWidth: true
-                        text: issueRow.modelData.title
-                        elide: Text.ElideRight
-                    }
-                    PlasmaComponents3.Label {
-                        visible: issueRow.modelData.assignees.indexOf(page.account.user) !== -1
-                        text: i18n("you")
-                        font: Kirigami.Theme.smallFont
-                        opacity: 0.6
-                    }
-                }
-            }
-        }
-
-        PlasmaComponents3.ToolButton {
-            visible: page.issuesOpen && page.issues !== null && page.issues.length > 5
-            text: page.issues ? i18n("and %1 more…", page.issues.length - 5) : ""
-            onClicked: Qt.openUrlExternally(page.repo.url + (page.account.provider === "gitlab" ? "/-/issues" : "/issues"))
-        }
-
-        PlasmaComponents3.BusyIndicator {
-            Layout.alignment: Qt.AlignHCenter
-            Layout.preferredHeight: Kirigami.Units.iconSizes.medium
-            visible: page.issuesOpen && page.loadingIssues
-            running: visible
-        }
-
-        PlasmaExtras.ListSectionHeader {
-            Layout.fillWidth: true
-            text: page.loadingMrs ? i18n("Open %1s in this repo", page.mr)
-                                  : i18n("Open %1s in this repo · %2", page.mr, page.mrs.length)
-        }
-
+        // Everything between the header and the status line scrolls as one,
+        // so opening the folded sections never squeezes the merge requests
         PlasmaComponents3.ScrollView {
+            id: body
             Layout.fillWidth: true
             Layout.fillHeight: true
+            QQC2.ScrollBar.horizontal.policy: QQC2.ScrollBar.AlwaysOff
 
-            contentItem: ListView {
-                clip: true
-                boundsBehavior: Flickable.StopAtBounds
-                model: page.mrs
+            ColumnLayout {
+                width: body.availableWidth
+                spacing: Kirigami.Units.smallSpacing
 
-                delegate: MrDelegate {
-                    widget: page.widget
-                    account: page.account
+                ListView {
+                    id: actions
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: contentHeight
+                    interactive: false
+                    keyNavigationEnabled: true
+                    focus: true
+                    model: 4
+                    delegate: ActionRow {
+                        required property int index
+
+                        iconName: ["merge", "branch", "external", "copy"][index]
+                        title: [i18n("New %1", page.account && page.account.provider === "gitlab" ? i18n("merge request") : i18n("pull request")),
+                                i18n("New branch"), i18n("Open in browser"), i18n("Copy link")][index]
+                        detail: [
+                            !page.writable ? i18n("Not available for this repo")
+                                : page.loadingBranches ? i18n("Loading branches…")
+                                : page.lastPushed ? i18n("%1 → %2", page.lastPushed.name, page.defaultBranch)
+                                : i18n("No other branches yet"),
+                            page.defaultBranch ? i18n("Create on the remote from %1", page.defaultBranch) : i18n("Loading branches…"),
+                            page.account && page.account.provider === "gitlab" ? i18n("Repository page on GitLab") : i18n("Repository page on GitHub"),
+                            i18n("Web URL · Shift+C SSH · Alt+C HTTPS")
+                        ][index]
+                        shortcut: ["Ctrl+Enter", "B", "O", "C"][index]
+                        enabled: index === 0 ? page.writable && page.branches.length > 1
+                                 : index === 1 ? page.writable && page.branches.length > 0 : true
+                        onClicked: {
+                            actions.currentIndex = index;
+                            [page.newMr, page.newBranch, () => Qt.openUrlExternally(page.repo.url), () => page.copy("url")][index]();
+                        }
+                    }
+                }
+
+                // Commits of the last pushed branch, folded until asked for (mockup 4.11)
+                PlasmaComponents3.ItemDelegate {
+                    Layout.fillWidth: true
+                    visible: page.lastPushed !== null
+                    onClicked: {
+                        page.commitsOpen = !page.commitsOpen;
+                        if (page.commitsOpen && !page.compare) {
+                            page.loadCompare();
+                        }
+                    }
+                    contentItem: RowLayout {
+                        FoldChevron {
+                            open: page.commitsOpen
+                        }
+                        PlasmaComponents3.Label {
+                            Layout.fillWidth: true
+                            text: !page.lastPushed ? ""
+                                  : page.compare ? i18n("Recent commits on %1 · %2 since %3", page.lastPushed.name, page.compare.ahead, page.defaultBranch)
+                                  : i18n("Recent commits on %1", page.lastPushed.name)
+                            elide: Text.ElideRight
+                        }
+                    }
+                }
+
+                Fold {
+                    open: page.commitsOpen
+
+                Repeater {
+                    model: page.compare ? page.compare.commits.slice(0, 5) : []
+
+                    RowLayout {
+                        required property var modelData
+                        Layout.fillWidth: true
+                        Layout.leftMargin: Kirigami.Units.gridUnit * 1.5
+                        spacing: Kirigami.Units.smallSpacing
+
+                        PlasmaComponents3.Label {
+                            text: modelData.sha.slice(0, 7)
+                            font.family: "monospace"
+                            font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+                            opacity: 0.6
+                        }
+                        PlasmaComponents3.Label {
+                            Layout.fillWidth: true
+                            text: modelData.title
+                            elide: Text.ElideRight
+                        }
+                        PlasmaComponents3.Label {
+                            text: page.widget.ago(modelData.date)
+                            font: Kirigami.Theme.smallFont
+                            opacity: 0.6
+                        }
+                    }
+                }
+
+                PlasmaComponents3.BusyIndicator {
+                    Layout.alignment: Qt.AlignHCenter
+                    Layout.preferredHeight: Kirigami.Units.iconSizes.medium
+                    visible: page.loadingCompare
+                    running: visible
+                }
+                }
+
+                // Open issues of the repo (PRD 4.2), folded like the commits
+                PlasmaComponents3.ItemDelegate {
+                    Layout.fillWidth: true
+                    onClicked: {
+                        page.issuesOpen = !page.issuesOpen;
+                        if (page.issuesOpen && !page.issues) {
+                            page.loadIssues();
+                        }
+                    }
+                    contentItem: RowLayout {
+                        FoldChevron {
+                            open: page.issuesOpen
+                        }
+                        PlasmaComponents3.Label {
+                            Layout.fillWidth: true
+                            text: !page.issues ? i18n("Open issues")
+                                  : i18n("Open issues · %1 · %2 assigned to me", page.issues.length, page.assignedToMe)
+                            elide: Text.ElideRight
+                        }
+                    }
+                }
+
+                Fold {
+                    open: page.issuesOpen
+
+                Repeater {
+                    model: page.issues ? page.issues.slice(0, 5) : []
+
+                    PlasmaComponents3.ItemDelegate {
+                        id: issueRow
+                        required property var modelData
+                        Layout.fillWidth: true
+                        Layout.leftMargin: Kirigami.Units.gridUnit * 1.5
+                        onClicked: Qt.openUrlExternally(modelData.url)
+                        contentItem: RowLayout {
+                            spacing: Kirigami.Units.smallSpacing
+                            PlasmaComponents3.Label {
+                                text: "#" + issueRow.modelData.number
+                                font.family: "monospace"
+                                font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+                                opacity: 0.6
+                            }
+                            PlasmaComponents3.Label {
+                                Layout.fillWidth: true
+                                text: issueRow.modelData.title
+                                elide: Text.ElideRight
+                            }
+                            PlasmaComponents3.Label {
+                                visible: issueRow.modelData.assignees.indexOf(page.account.user) !== -1
+                                text: i18n("you")
+                                font: Kirigami.Theme.smallFont
+                                opacity: 0.6
+                            }
+                        }
+                    }
+                }
+
+                PlasmaComponents3.ToolButton {
+                    visible: page.issues !== null && page.issues.length > 5
+                    text: page.issues ? i18n("and %1 more…", page.issues.length - 5) : ""
+                    onClicked: Qt.openUrlExternally(page.repo.url + (page.account.provider === "gitlab" ? "/-/issues" : "/issues"))
+                }
+
+                PlasmaComponents3.BusyIndicator {
+                    Layout.alignment: Qt.AlignHCenter
+                    Layout.preferredHeight: Kirigami.Units.iconSizes.medium
+                    visible: page.loadingIssues
+                    running: visible
+                }
+                }
+
+                PlasmaExtras.ListSectionHeader {
+                    Layout.fillWidth: true
+                    text: page.loadingMrs ? i18n("Open %1s in this repo", page.mr)
+                                          : i18n("Open %1s in this repo · %2", page.mr, page.mrs.length)
+                }
+
+                Repeater {
+                    model: page.mrs
+
+                    MrDelegate {
+                        Layout.fillWidth: true
+                        widget: page.widget
+                        account: page.account
+                    }
+                }
+
+                PlasmaComponents3.Label {
+                    Layout.alignment: Qt.AlignHCenter
+                    visible: !page.loadingMrs && page.mrs.length === 0 && page.loadError === ""
+                    text: i18n("No open %1s.", page.mr)
+                    opacity: 0.6
                 }
             }
-        }
-
-        PlasmaComponents3.Label {
-            Layout.alignment: Qt.AlignHCenter
-            visible: !page.loadingMrs && page.mrs.length === 0 && page.loadError === ""
-            text: i18n("No open %1s.", page.mr)
-            opacity: 0.6
         }
 
         PlasmaComponents3.Label {
