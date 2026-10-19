@@ -43,9 +43,11 @@ PlasmoidItem {
     property var queuesLoadedAt: null
     readonly property int queueMaxAge: 60 * 1000 // reopening the popup within a minute keeps them
 
-    // Panel badge: what waits for the user, from the Reviews and My MRs tabs
+    // Panel badge: everything that waits for the user to act, from the
+    // Reviews and My MRs tabs. Running pipelines and drafts wait for others.
     readonly property int readyCount: mineItems.filter(i => i.status === "ready").length
-    readonly property int badgeCount: reviewItems.length + readyCount
+    readonly property int fixCount: mineItems.filter(i => i.status === "failed" || i.status === "conflict").length
+    readonly property int badgeCount: reviewItems.length + readyCount + fixCount
     readonly property alias repoModel: repoModel
 
     // One short line for the footer after an action ("Copied: …", "Hidden …"),
@@ -62,8 +64,8 @@ PlasmoidItem {
     Plasmoid.icon: iconSource
     toolTipMainText: i18n("Gitway")
     toolTipSubText: !account ? ""
-        : queuesLoadedAt ? i18n("%1 · %2 waiting for review · %3 ready to merge",
-                                             Repos.accountLabel(account), reviewItems.length, readyCount)
+        : queuesLoadedAt ? i18n("%1 · %2 to review · %3 ready to merge · %4 to fix",
+                                Repos.accountLabel(account), reviewItems.length, readyCount, fixCount)
         : i18n("%1 · %2 repos", Repos.accountLabel(account), repoCount)
 
     // Extra entries in the widget's own right-click menu, next to

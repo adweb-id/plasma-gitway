@@ -101,7 +101,7 @@ KCM.SimpleKCM {
             Layout.maximumWidth: Kirigami.Units.gridUnit * 26
             wrapMode: Text.Wrap
             opacity: 0.7
-            text: i18n("Counts merge requests waiting for my review, plus my merge requests that are ready to merge. Refreshed when the widget loads, the popup opens or repos sync.")
+            text: i18n("Counts what waits for me: merge requests asking for my review, plus my own that are ready to merge, have a failed pipeline or have conflicts. Running pipelines and drafts are not counted. Refreshed when the widget loads, the popup opens or repos sync.")
         }
 
         RowLayout {

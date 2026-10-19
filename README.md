@@ -65,6 +65,25 @@ A failed sync exits non-zero with the reason on stderr and leaves the previous
 Tested against github.com and gitlab.com. Self-hosted GitLab and GitHub Enterprise
 should work (every command takes the host from the account), but are not tested.
 
+## FAQ
+
+**What does the badge on the panel icon count?**
+Everything that waits for you to act: merge requests asking for your review, plus your own
+merge requests that are ready to merge, have a failed pipeline or have conflicts. Running
+pipelines and drafts are not counted. Hover the icon to see the three numbers. The badge
+refreshes when the widget loads, when the popup opens and after Sync repos, and optionally
+every few minutes (settings, "Also check every").
+
+**Why does My MRs show more than the badge?**
+My MRs lists all your open merge requests, the badge only the ones you can act on now.
+
+**Where are my tokens stored?**
+In gh and glab, as always. Gitway never sees them and only runs their commands.
+
+**How do I add a second GitLab account on the same host?**
+Account list, Add account. glab keeps one account per host, so Gitway signs the new one in
+to its own config folder (`~/.config/glab-cli-<n>`) and finds it there.
+
 ## License
 
 GPL-3.0-or-later. The GitHub and GitLab logos are trademarks of their owners and
