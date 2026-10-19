@@ -285,9 +285,11 @@ PlasmaExtras.Representation {
         if (!account) {
             return "";
         }
-        return account.provider === "gitlab"
-            ? "glab auth login --hostname " + account.host
-            : "gh auth login --hostname " + account.host;
+        if (account.provider !== "gitlab") {
+            return "gh auth login --hostname " + account.host;
+        }
+        return (account.configDir ? "GLAB_CONFIG_DIR=" + account.configDir + " " : "")
+            + "glab auth login --hostname " + account.host;
     }
 
     // Typing works as soon as the popup opens

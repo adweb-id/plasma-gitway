@@ -22,8 +22,11 @@ function ghApi(path, args) {
     return "timeout " + TIMEOUT + " gh api " + q(path) + (args ? " " + args : "");
 }
 
+// A second GitLab account on the same host has its own glab config folder
+// (account.configDir, found by sync-repos.sh accounts)
 function glApi(account, path, args) {
-    return "timeout " + TIMEOUT + " glab api --hostname " + q(account.host) + " " + q(path) + (args ? " " + args : "");
+    const env = account.configDir ? "GLAB_CONFIG_DIR=" + q(account.configDir) + " " : "";
+    return env + "timeout " + TIMEOUT + " glab api --hostname " + q(account.host) + " " + q(path) + (args ? " " + args : "");
 }
 
 // GitHub accepts "/" inside branch names in URL paths, other characters are encoded

@@ -20,7 +20,8 @@ function readCommand(script, account) {
 function syncCommand(script, account, includeOrgs) {
     return ["bash", shellQuote(script), "sync", shellQuote(account.provider),
             shellQuote(account.host), shellQuote(account.user)].join(" ")
-        + (includeOrgs ? "" : " --no-orgs");
+        + (includeOrgs ? "" : " --no-orgs")
+        + (account.configDir ? " --glab-config " + shellQuote(account.configDir) : "");
 }
 
 // "github/github.com/addin": how an account is stored in the settings
