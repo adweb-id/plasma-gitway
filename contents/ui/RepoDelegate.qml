@@ -36,11 +36,9 @@ PlasmaComponents3.ItemDelegate {
                   + "</font>" + row.escapeHtml(row.name)
         }
 
-        Kirigami.Icon {
+        SvgIcon {
             visible: row.visibility !== "public"
-            source: "object-locked"
-            implicitWidth: Kirigami.Units.iconSizes.small
-            implicitHeight: implicitWidth
+            name: "lock"
             // GitLab "internal": visible to every signed-in user of the instance
             opacity: row.visibility === "internal" ? 0.45 : 0.8
         }
@@ -83,13 +81,11 @@ PlasmaComponents3.ItemDelegate {
         PlasmaComponents3.Menu {
             PlasmaComponents3.MenuItem {
                 text: i18n("Open in browser")
-                icon.name: "internet-web-browser"
                 onTriggered: row.widget.openRepo(row.index)
             }
             PlasmaComponents3.MenuSeparator {}
             PlasmaComponents3.MenuItem {
                 text: i18n("Copy link")
-                icon.name: "edit-copy"
                 onTriggered: row.widget.copyRepo(row.index, "url")
             }
             PlasmaComponents3.MenuItem {

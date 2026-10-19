@@ -87,40 +87,28 @@ PlasmaExtras.Representation {
                                 font: Kirigami.Theme.smallFont
                                 opacity: 0.6
                             }
-                            Kirigami.Icon {
+                            SvgIcon {
                                 visible: accountItem.modelData.key === full.widget.accountKey
-                                source: "checkmark"
-                                implicitWidth: Kirigami.Units.iconSizes.small
-                                implicitHeight: implicitWidth
+                                name: "check"
                             }
                         }
                     }
                 }
 
-                PlasmaComponents3.ToolButton {
-                    visible: full.widget.account !== null && !full.widget.syncing
-                    icon.name: "view-refresh"
+                // Spins while a sync runs; the search keeps working on the old list
+                IconButton {
+                    visible: full.widget.account !== null
+                    iconName: "sync"
+                    toolTip: full.widget.syncing ? i18n("Syncing repos…") : i18n("Sync repos")
+                    spinning: full.widget.syncing
+                    enabled: !full.widget.syncing
                     onClicked: full.widget.sync()
-                    Accessible.name: i18n("Sync repos")
-                    QQC2.ToolTip.text: i18n("Sync repos")
-                    QQC2.ToolTip.visible: hovered
-                    QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
                 }
 
-                PlasmaComponents3.BusyIndicator {
-                    visible: full.widget.syncing
-                    running: visible
-                    Layout.preferredWidth: Kirigami.Units.iconSizes.medium
-                    Layout.preferredHeight: Kirigami.Units.iconSizes.medium
-                }
-
-                PlasmaComponents3.ToolButton {
-                    icon.name: "configure"
+                IconButton {
+                    iconName: "settings"
+                    toolTip: i18n("Settings")
                     onClicked: Plasmoid.internalAction("configure").trigger()
-                    Accessible.name: i18n("Settings")
-                    QQC2.ToolTip.text: i18n("Settings")
-                    QQC2.ToolTip.visible: hovered
-                    QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
                 }
             }
 
@@ -161,7 +149,6 @@ PlasmaExtras.Representation {
                 actions: [
                     Kirigami.Action {
                         text: i18n("Copy sign-in command")
-                        icon.name: "edit-copy"
                         onTriggered: full.widget.copyText(full.signInCommand(full.widget.account))
                     }
                 ]
@@ -175,7 +162,6 @@ PlasmaExtras.Representation {
                 actions: [
                     Kirigami.Action {
                         text: i18n("Try again")
-                        icon.name: "view-refresh"
                         onTriggered: full.widget.sync()
                     }
                 ]
@@ -322,58 +308,48 @@ PlasmaExtras.Representation {
     }
 
     // State: neither gh nor glab is signed in
-    PlasmaExtras.PlaceholderMessage {
+    EmptyState {
         anchors.centerIn: parent
         width: parent.width - Kirigami.Units.gridUnit * 4
         visible: full.widget.phase === "noAccounts"
-        iconName: "network-connect"
-        text: i18n("Connect at least one service")
+        iconName: "merge"
+        title: i18n("Connect at least one service")
         explanation: i18n("Gitway works with GitHub, GitLab, or both. Sign in once in a terminal with gh auth login or glab auth login, then open Gitway again.")
-        helpfulAction: Kirigami.Action {
-            text: i18n("Copy gh auth login")
-            icon.name: "edit-copy"
-            onTriggered: full.widget.copyText("gh auth login")
-        }
+        actionText: i18n("Copy gh auth login")
+        onActionTriggered: full.widget.copyText("gh auth login")
     }
 
     // State: the first sync failed, nothing cached to show
-    PlasmaExtras.PlaceholderMessage {
+    EmptyState {
         anchors.centerIn: parent
         width: parent.width - Kirigami.Units.gridUnit * 4
         visible: full.widget.phase === "ready" && full.widget.repoData === null
                  && !full.widget.syncing && full.widget.syncError !== ""
-        iconName: "dialog-error"
-        text: i18n("Couldn't load repos")
+        iconName: "error"
+        title: i18n("Couldn't load repos")
         explanation: full.widget.syncError
-        helpfulAction: Kirigami.Action {
-            text: i18n("Try again")
-            icon.name: "view-refresh"
-            onTriggered: full.widget.sync()
-        }
+        actionText: i18n("Try again")
+        onActionTriggered: full.widget.sync()
     }
 
     // State: list loaded, nothing to show
-    PlasmaExtras.PlaceholderMessage {
+    EmptyState {
+        readonly property bool searching: full.widget.searchText !== ""
+        readonly property bool withArchived: full.widget.searchText.startsWith("!")
+
         anchors.centerIn: parent
         width: parent.width - Kirigami.Units.gridUnit * 4
         visible: full.hasList && list.count === 0
-        iconName: "edit-find"
-        text: full.widget.searchText !== ""
-              ? i18n("No repos match \"%1\"", full.widget.searchText)
-              : i18n("No repositories found for this account")
-        explanation: full.widget.searchText !== "" && !full.widget.searchText.startsWith("!")
-                     ? i18n("Archived repos are hidden. Start the search with ! to include them.")
-                     : ""
-        helpfulAction: Kirigami.Action {
-            enabled: full.widget.searchText === "" || !full.widget.searchText.startsWith("!")
-            text: full.widget.searchText !== "" ? i18n("Include archived") : i18n("Sync repos")
-            icon.name: full.widget.searchText !== "" ? "edit-find" : "view-refresh"
-            onTriggered: {
-                if (full.widget.searchText !== "") {
-                    full.widget.searchText = "!" + full.widget.searchText;
-                } else {
-                    full.widget.sync();
-                }
+        iconName: "search"
+        title: searching ? i18n("No repos match \"%1\"", full.widget.searchText)
+                         : i18n("No repositories found for this account")
+        explanation: searching && !withArchived ? i18n("Archived repos are hidden. Start the search with ! to include them.") : ""
+        actionText: !searching ? i18n("Sync repos") : (withArchived ? "" : i18n("Include archived"))
+        onActionTriggered: {
+            if (searching) {
+                full.widget.searchText = "!" + full.widget.searchText;
+            } else {
+                full.widget.sync();
             }
         }
     }
