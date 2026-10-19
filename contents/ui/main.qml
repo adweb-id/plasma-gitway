@@ -54,6 +54,32 @@ PlasmoidItem {
     toolTipMainText: i18n("Gitway")
     toolTipSubText: account ? i18n("%1 · %2 repos", Repos.accountLabel(account), repoCount) : ""
 
+    // Extra entries in the widget's own right-click menu, next to
+    // "Configure Gitway…". Sync runs at once, so it has no ellipsis.
+    Plasmoid.contextualActions: [
+        PlasmaCore.Action {
+            text: i18n("Sync repos")
+            icon.name: "view-refresh"
+            enabled: root.account !== null && !root.syncing
+            onTriggered: root.sync()
+        },
+        PlasmaCore.Action {
+            text: i18n("About Gitway")
+            icon.name: "help-about"
+            onTriggered: root.showAbout()
+        }
+    ]
+
+    // The popup has to exist before its About page can be pushed
+    function showAbout() {
+        root.expanded = true;
+        Qt.callLater(() => {
+            if (root.fullRepresentationItem) {
+                root.fullRepresentationItem.showAbout();
+            }
+        });
+    }
+
     compactRepresentation: CompactRepresentation { widget: root }
     fullRepresentation: FullRepresentation { widget: root }
 

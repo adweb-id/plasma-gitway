@@ -222,6 +222,11 @@ PlasmaExtras.Representation {
         BranchFormPage {}
     }
 
+    Component {
+        id: aboutComponent
+        AboutPage {}
+    }
+
     // --- Navigation, called by the pages -------------------------------------------
 
     function showRepo(row, startMr) {
@@ -238,6 +243,15 @@ PlasmaExtras.Representation {
     function showBranchForm(repoPage) {
         stack.push(branchFormComponent, { widget: widget, full: full, repoPage: repoPage, repo: repoPage.repo });
         stack.currentItem.forceActiveFocus();
+    }
+
+    // From the right-click menu: on top of whatever page is open, unless an
+    // action is running or About is already there
+    function showAbout() {
+        if (!busy && !(page && page.objectName === "aboutPage")) {
+            stack.push(aboutComponent, { widget: widget, full: full });
+            stack.currentItem.forceActiveFocus();
+        }
     }
 
     function back() {
