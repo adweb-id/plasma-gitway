@@ -24,6 +24,27 @@ function syncCommand(script, account, includeOrgs) {
         + (account.configDir ? " --glab-config " + shellQuote(account.configDir) : "");
 }
 
+// Opens the user's terminal (KDE's choice, Konsole by default) on the CLI's
+// own sign-in, and returns when that window closes so the account list can
+// be read again. A GitLab host that already has an account gets the next
+// free glab-cli-<n> config folder, since glab keeps one token per host.
+function loginCommand(provider, host, newGlabFolder) {
+    let inner;
+    if (provider === "gitlab") {
+        inner = (newGlabFolder
+            ? "c=${XDG_CONFIG_HOME:-$HOME/.config}; n=2; while [ -e \"$c/glab-cli-$n\" ]; do n=$((n+1)); done; "
+              + "export GLAB_CONFIG_DIR=\"$c/glab-cli-$n\"; echo \"Signing in to a new account, kept in $GLAB_CONFIG_DIR\"; echo; "
+            : "")
+            + "glab auth login --hostname " + shellQuote(host);
+    } else {
+        inner = "gh auth login --hostname " + shellQuote(host);
+    }
+    const script = inner + "; echo; echo 'Done. Press Enter to close this window and return to Gitway.'; read _";
+    return "t=$(kreadconfig6 --group General --key TerminalApplication 2>/dev/null); t=${t:-konsole}; "
+        + "case $t in konsole) set -- konsole --nofork ;; *) set -- $t ;; esac; "
+        + "\"$@\" -e sh -c " + shellQuote(script) + " >/dev/null 2>&1";
+}
+
 // "github/github.com/addin": how an account is stored in the settings
 function accountKey(account) {
     return account ? account.provider + "/" + account.host + "/" + account.user : "";

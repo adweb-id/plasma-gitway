@@ -23,6 +23,11 @@ PlasmoidItem {
     property var repoData: null
     readonly property int repoCount: repoData ? repoData.repos.length : 0
 
+    // "Add account…": a terminal with gh/glab's own sign-in is open
+    property bool addingAccount: false
+    // Set when the terminal closed without a new account showing up
+    property bool addFoundNothing: false
+
     property bool syncing: false
     property string syncError: ""
 
@@ -130,10 +135,14 @@ PlasmoidItem {
 
     // --- Accounts ------------------------------------------------------------
 
-    function loadAccounts() {
-        exec(Repos.accountsCommand(scriptPath), (stdout, stderr, exitCode) => {
+    // onLoaded(list), optional: called with the fresh account list
+    function loadAccounts(onLoaded) {
+        run(Repos.accountsCommand(scriptPath), (stdout, stderr, exitCode) => {
             const list = Repos.parseAccounts(stdout);
             accounts = list;
+            if (onLoaded) {
+                onLoaded(list);
+            }
             const next = Repos.pickAccount(list, Plasmoid.configuration.activeAccount);
             if (!next) {
                 account = null;
@@ -220,6 +229,33 @@ PlasmoidItem {
         } else {
             issueItems = rest;
         }
+    }
+
+    // Opens a terminal on the sign-in and, once it is closed, picks the new
+    // account. A GitLab host that already has one gets its own glab folder.
+    function addAccount(provider, host) {
+        if (addingAccount) {
+            return;
+        }
+        const before = accounts.map(Repos.accountKey);
+        const sameHost = provider === "gitlab" && accounts.some(a => a.provider === "gitlab" && a.host === host);
+        addingAccount = true;
+        addFoundNothing = false;
+        run(Repos.loginCommand(provider, host, sameHost), () => {
+            loadAccounts(list => {
+                addingAccount = false;
+                const added = list.find(a => before.indexOf(Repos.accountKey(a)) === -1 && a.status === "ok");
+                if (!added) {
+                    addFoundNothing = true;
+                    return;
+                }
+                switchAccount(Repos.accountKey(added));
+                showNotice(i18n("Added %1", Repos.accountLabel(added)));
+                if (root.fullRepresentationItem) {
+                    root.fullRepresentationItem.accountAdded();
+                }
+            });
+        });
     }
 
     function switchAccount(key) {

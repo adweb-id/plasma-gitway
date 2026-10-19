@@ -57,19 +57,26 @@ PlasmaExtras.Representation {
                     visible: full.widget.accounts.length > 0
                     enabled: !full.busy
                     Layout.maximumWidth: Kirigami.Units.gridUnit * 12
+                    // Every account, then "Add account…" at the end
                     model: full.widget.accounts.map(a => ({
                         key: Repos.accountKey(a),
                         label: Repos.accountLabel(a),
                         provider: a.provider,
                         ok: a.status === "ok"
-                    }))
+                    })).concat([{ key: "add", label: i18n("Add account…"), provider: "", ok: true }])
                     textRole: "label"
                     valueRole: "key"
                     currentIndex: model.findIndex(a => a.key === full.widget.accountKey)
                     onActivated: {
-                        if (currentValue !== full.widget.accountKey) {
+                        const picked = currentValue;
+                        // A pick breaks the binding above; restore it so the box keeps
+                        // following the active account (e.g. after Add account picks one)
+                        currentIndex = Qt.binding(() => model.findIndex(a => a.key === full.widget.accountKey));
+                        if (picked === "add") {
+                            full.showAddAccount();
+                        } else if (picked !== full.widget.accountKey) {
                             full.backToList();
-                            full.widget.switchAccount(currentValue);
+                            full.widget.switchAccount(picked);
                         }
                     }
                     Accessible.name: i18n("Account")
@@ -85,7 +92,12 @@ PlasmaExtras.Representation {
                             spacing: Kirigami.Units.smallSpacing
 
                             ProviderLogo {
+                                visible: accountItem.modelData.key !== "add"
                                 provider: accountItem.modelData.provider
+                            }
+                            SvgIcon {
+                                visible: accountItem.modelData.key === "add"
+                                name: "add"
                             }
                             PlasmaComponents3.Label {
                                 Layout.fillWidth: true
@@ -227,6 +239,11 @@ PlasmaExtras.Representation {
         AboutPage {}
     }
 
+    Component {
+        id: addAccountComponent
+        AddAccountPage {}
+    }
+
     // --- Navigation, called by the pages -------------------------------------------
 
     function showRepo(row, startMr) {
@@ -251,6 +268,20 @@ PlasmaExtras.Representation {
         if (!busy && !(page && page.objectName === "aboutPage")) {
             stack.push(aboutComponent, { widget: widget, full: full });
             stack.currentItem.forceActiveFocus();
+        }
+    }
+
+    function showAddAccount() {
+        if (!busy && !(page && page.objectName === "addAccountPage")) {
+            stack.push(addAccountComponent, { widget: widget, full: full });
+            stack.currentItem.forceActiveFocus();
+        }
+    }
+
+    // The new account is active: leave the add page for its repos
+    function accountAdded() {
+        if (page && page.objectName === "addAccountPage") {
+            backToList();
         }
     }
 

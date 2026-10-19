@@ -18,22 +18,6 @@ KCM.SimpleKCM {
     readonly property var hiddenHere: cfg_hidden.filter(e => e.startsWith(cfg_activeAccount + "\t"))
                                                 .map(e => e.slice(cfg_activeAccount.length + 1))
 
-    // A second GitLab account on the same host: its own glab config folder,
-    // which Gitway finds by the glab-cli-* name
-    readonly property string glabLogin: "GLAB_CONFIG_DIR=~/.config/glab-cli-work glab auth login --hostname gitlab.com"
-
-    // QML has no clipboard API; a hidden TextEdit is the usual workaround.
-    TextEdit {
-        id: clipboardHelper
-        visible: false
-    }
-
-    function copy(text) {
-        clipboardHelper.text = text;
-        clipboardHelper.selectAll();
-        clipboardHelper.copy();
-    }
-
     function unhide(pattern) {
         cfg_hidden = cfg_hidden.filter(e => e !== cfg_activeAccount + "\t" + pattern);
     }
@@ -100,32 +84,11 @@ KCM.SimpleKCM {
             Kirigami.FormData.isSection: true
         }
 
-        ColumnLayout {
-            Kirigami.FormData.label: i18n("More GitLab accounts:")
+        QQC2.Label {
+            Kirigami.FormData.label: i18n("Accounts:")
             Layout.maximumWidth: Kirigami.Units.gridUnit * 26
-            spacing: Kirigami.Units.smallSpacing
-
-            QQC2.Label {
-                Layout.fillWidth: true
-                wrapMode: Text.Wrap
-                text: i18n("glab keeps one account per host. For a second account on the same host, sign it in to its own config folder named glab-cli-something. Gitway finds it the next time the popup opens. Another host only needs a normal glab auth login.")
-            }
-
-            RowLayout {
-                Layout.fillWidth: true
-
-                QQC2.TextField {
-                    Layout.fillWidth: true
-                    readOnly: true
-                    selectByMouse: true
-                    font.family: "monospace"
-                    text: glabLogin
-                }
-                QQC2.Button {
-                    text: i18n("Copy")
-                    onClicked: copy(glabLogin)
-                }
-            }
+            wrapMode: Text.Wrap
+            text: i18n("Add GitHub and GitLab accounts from the account list in the popup, with Add account…")
         }
 
         Item {

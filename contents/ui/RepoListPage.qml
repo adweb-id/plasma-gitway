@@ -272,9 +272,9 @@ FocusScope {
         visible: page.widget.phase === "noAccounts"
         iconName: "merge"
         title: i18n("Connect at least one service")
-        explanation: i18n("Gitway works with GitHub, GitLab, or both. Sign in once in a terminal with gh auth login or glab auth login, then open Gitway again.")
-        actionText: i18n("Copy gh auth login")
-        onActionTriggered: page.widget.copyText("gh auth login")
+        explanation: i18n("Gitway works with GitHub, GitLab, or both, through gh and glab. You can add the other one later.")
+        actionText: i18n("Add account")
+        onActionTriggered: page.full.showAddAccount()
     }
 
     // State: the first sync failed, nothing cached to show
