@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls as QQC2
+import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import org.kde.kcmutils as KCM
 
@@ -10,6 +11,16 @@ KCM.SimpleKCM {
     property alias cfg_assignToMe: assignCheck.checked
     property alias cfg_deleteSourceBranch: deleteSourceCheck.checked
     property alias cfg_openAfterCreate: openAfterCheck.checked
+    // Hidden repos of every account; only the active account's are listed here
+    property var cfg_hidden: []
+    property string cfg_activeAccount: ""
+
+    readonly property var hiddenHere: cfg_hidden.filter(e => e.startsWith(cfg_activeAccount + "\t"))
+                                                .map(e => e.slice(cfg_activeAccount.length + 1))
+
+    function unhide(pattern) {
+        cfg_hidden = cfg_hidden.filter(e => e !== cfg_activeAccount + "\t" + pattern);
+    }
 
     Kirigami.FormLayout {
         QQC2.CheckBox {
@@ -26,6 +37,47 @@ KCM.SimpleKCM {
         QQC2.CheckBox {
             id: syncOnOpenCheck
             text: i18n("Sync repos when opening, at most once an hour")
+        }
+
+        // Repos hidden with H or the right-click menu, for the account shown in the popup
+        ColumnLayout {
+            Kirigami.FormData.label: i18n("Hidden repos:")
+            spacing: Kirigami.Units.smallSpacing
+
+            QQC2.Label {
+                visible: hiddenHere.length === 0
+                text: i18n("None. Press H on a repo, or right-click it, to hide it.")
+                opacity: 0.7
+            }
+
+            Repeater {
+                model: hiddenHere
+
+                RowLayout {
+                    required property string modelData
+
+                    QQC2.Label {
+                        text: modelData
+                        font.family: "monospace"
+                    }
+                    QQC2.Button {
+                        text: i18n("Show")
+                        onClicked: unhide(modelData)
+                    }
+                }
+            }
+
+            QQC2.Button {
+                visible: hiddenHere.length > 1
+                text: i18n("Show all")
+                onClicked: cfg_hidden = cfg_hidden.filter(e => !e.startsWith(cfg_activeAccount + "\t"))
+            }
+
+            QQC2.Label {
+                text: cfg_activeAccount !== "" ? i18n("Account: %1", cfg_activeAccount.split("/").slice(1).reverse().join(" - ")) : ""
+                font: Kirigami.Theme.smallFont
+                opacity: 0.6
+            }
         }
 
         Item {

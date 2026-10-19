@@ -39,8 +39,9 @@ PlasmoidItem {
     readonly property int queueMaxAge: 60 * 1000 // reopening the popup within a minute keeps them
     readonly property alias repoModel: repoModel
 
-    // Text copied most recently; the footer shows a short "Copied" confirmation
-    property string lastCopied: ""
+    // One short line for the footer after an action ("Copied: …", "Hidden …"),
+    // shown instead of the key hints for a moment
+    property string notice: ""
 
     readonly property string scriptPath: decodeURIComponent(
         Qt.resolvedUrl("../scripts/sync-repos.sh").toString().replace(/^file:\/\//, ""))
@@ -267,7 +268,9 @@ PlasmoidItem {
     function rebuild() {
         const repos = repoData ? repoData.repos : [];
         const recent = Repos.recentFor(Plasmoid.configuration.recent, accountKey);
-        const rows = Repos.buildRows(repos, searchText, recent, Plasmoid.configuration.hideArchived);
+        const rows = Repos.buildRows(repos, searchText, recent, Plasmoid.configuration.hideArchived,
+                                     Repos.recentFor(Plasmoid.configuration.pinned, accountKey),
+                                     Repos.recentFor(Plasmoid.configuration.hidden, accountKey));
         // Replace in place so the list keeps its scroll position while typing
         while (repoModel.count > rows.length) {
             repoModel.remove(repoModel.count - 1);
@@ -287,6 +290,8 @@ PlasmoidItem {
         target: Plasmoid.configuration
         function onHideArchivedChanged() { root.rebuild(); }
         function onRecentChanged() { root.rebuild(); }
+        function onPinnedChanged() { root.rebuild(); }
+        function onHiddenChanged() { root.rebuild(); }
         function onIncludeOrgsChanged() { root.sync(); }
     }
 
@@ -313,10 +318,47 @@ PlasmoidItem {
         }
         const item = repoModel.get(index);
         const row = {};
-        for (const key of ["id", "path", "owner", "name", "url", "ssh", "https", "visibility", "archived", "defaultBranch", "pushedAt"]) {
+        for (const key of ["id", "path", "owner", "name", "url", "ssh", "https", "visibility", "archived", "defaultBranch", "pushedAt", "pinned", "hidden"]) {
             row[key] = item[key];
         }
         return row;
+    }
+
+    // --- Pin and hide (per account) ---------------------------------------------
+
+    function togglePin(index) {
+        const row = rowAt(index);
+        if (row) {
+            Plasmoid.configuration.pinned = Repos.toggleEntry(Plasmoid.configuration.pinned, accountKey, row.path);
+        }
+    }
+
+    // pattern: the repo path, or "owner/group/*" for everything under it
+    function hide(pattern) {
+        if (Repos.recentFor(Plasmoid.configuration.hidden, accountKey).indexOf(pattern) === -1) {
+            Plasmoid.configuration.hidden = Repos.toggleEntry(Plasmoid.configuration.hidden, accountKey, pattern);
+        }
+        showNotice(i18n("Hidden %1 · search with ! to see it", pattern));
+    }
+
+    function unhide(pattern) {
+        Plasmoid.configuration.hidden = Repos.removeEntry(Plasmoid.configuration.hidden, accountKey, pattern);
+    }
+
+    // Removes every pattern that hides this repo, its own path or "owner/*"
+    function unhideRepo(path) {
+        const patterns = Repos.recentFor(Plasmoid.configuration.hidden, accountKey).filter(p => Repos.isHidden(path, [p]));
+        let entries = Plasmoid.configuration.hidden;
+        for (const pattern of patterns) {
+            entries = Repos.removeEntry(entries, accountKey, pattern);
+        }
+        Plasmoid.configuration.hidden = entries;
+        showNotice(i18n("Showing %1 again", patterns.join(", ")));
+    }
+
+    // Open merge requests of the user in one repo, from the My MRs tab
+    function mrCount(path) {
+        return mineItems.filter(i => i.repoPath === path).length;
     }
 
     function lastTarget(path) {
@@ -350,14 +392,18 @@ PlasmoidItem {
         clipboardHelper.text = text;
         clipboardHelper.selectAll();
         clipboardHelper.copy();
-        lastCopied = text;
-        copiedReset.restart();
+        showNotice(i18n("Copied: %1", text));
+    }
+
+    function showNotice(text) {
+        notice = text;
+        noticeReset.restart();
     }
 
     Timer {
-        id: copiedReset
-        interval: 1500
-        onTriggered: root.lastCopied = ""
+        id: noticeReset
+        interval: 2500
+        onTriggered: root.notice = ""
     }
 
     // Sends one desktop notification, optionally with a single action button

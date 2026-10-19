@@ -19,6 +19,14 @@
     <entry name="includeOrgs" type="Bool">
       <default>true</default>
     </entry>
+    <!-- Pinned repos, in pin order: "provider/host/user<TAB>owner/repo" -->
+    <entry name="pinned" type="StringList">
+      <default></default>
+    </entry>
+    <!-- Hidden repos: "provider/host/user<TAB>owner/repo" or "...<TAB>owner/group/*" -->
+    <entry name="hidden" type="StringList">
+      <default></default>
+    </entry>
     <!-- Target branch last used per repo: "provider/host/user<TAB>owner/repo<TAB>branch" -->
     <entry name="lastTargets" type="StringList">
       <default></default>

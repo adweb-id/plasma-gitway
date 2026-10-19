@@ -62,7 +62,7 @@ function parseRepoFile(stdout) {
 // Search text -> filter. Words must all appear in "owner/name".
 //   org:acme        only repos under that owner or group
 //   private: public:  by visibility (GitLab "internal" counts as private)
-//   !text           also show archived repos
+//   !text           also show hidden and archived repos
 function parseQuery(text) {
     const query = { words: [], org: "", visibility: "", includeArchived: false };
     let rest = text.trim().toLowerCase();
@@ -88,8 +88,13 @@ function parseQuery(text) {
     return query;
 }
 
-function matches(repo, query, hideArchived) {
-    if (repo.archived && hideArchived && !query.includeArchived) {
+// Hidden patterns: a full "owner/repo", or "owner/group/*" for everything under it
+function isHidden(path, patterns) {
+    return patterns.some(p => p.endsWith("/*") ? path.startsWith(p.slice(0, -1)) : p === path);
+}
+
+function matches(repo, query, hideArchived, hidden) {
+    if (!query.includeArchived && ((repo.archived && hideArchived) || isHidden(repo.path, hidden))) {
         return false;
     }
     if (query.org && !repo.owner.toLowerCase().startsWith(query.org)) {
@@ -105,16 +110,22 @@ function matches(repo, query, hideArchived) {
     return query.words.every(w => path.includes(w));
 }
 
-// Rows for the list, each with a "section": recently opened repos first
-// (most recent first), then the rest by last push. While searching, a
-// repo whose own name starts with the first word goes before the others.
-function buildRows(repos, text, recentPaths, hideArchived) {
+// Rows for the list, each with a "section": pinned repos first (in the
+// order they were pinned), then recently opened ones (most recent first),
+// then the rest by last push. While searching, a repo whose own name
+// starts with the first word goes before the others.
+function buildRows(repos, text, recentPaths, hideArchived, pinnedPaths, hidden) {
     const query = parseQuery(text);
-    const shown = repos.filter(r => matches(r, query, hideArchived));
+    const pinRank = {};
+    pinnedPaths.forEach((path, i) => pinRank[path] = i);
+    // Pinning a repo is explicit, so it beats a hidden "owner/*" pattern
+    const shown = repos.filter(r => matches(r, query, hideArchived, pinRank[r.path] !== undefined ? [] : hidden));
+    const pinned = shown.filter(r => pinRank[r.path] !== undefined)
+        .sort((a, b) => pinRank[a.path] - pinRank[b.path]);
     const rank = {};
     recentPaths.forEach((path, i) => rank[path] = i);
 
-    const recent = shown.filter(r => rank[r.path] !== undefined)
+    const recent = shown.filter(r => rank[r.path] !== undefined && pinRank[r.path] === undefined)
         .sort((a, b) => rank[a.path] - rank[b.path]);
     const first = query.words[0] || "";
     // Without a search the Recent section stays short; the rest is under "All repos"
@@ -122,7 +133,7 @@ function buildRows(repos, text, recentPaths, hideArchived) {
     const inRecent = {};
     recentShown.forEach(r => inRecent[r.path] = true);
 
-    const rest = shown.filter(r => !inRecent[r.path])
+    const rest = shown.filter(r => !inRecent[r.path] && pinRank[r.path] === undefined)
         .sort((a, b) => (b.pushed_at || "").localeCompare(a.pushed_at || ""));
     if (first) {
         rest.sort((a, b) => {
@@ -131,10 +142,13 @@ function buildRows(repos, text, recentPaths, hideArchived) {
             return aHit === bHit ? 0 : (aHit ? -1 : 1);
         });
     }
-    return recentShown.map(r => toRow(r, "recent")).concat(rest.map(r => toRow(r, "all")));
+    const row = (r, section) => toRow(r, section, pinRank[r.path] !== undefined, isHidden(r.path, hidden));
+    return pinned.map(r => row(r, "pinned"))
+        .concat(recentShown.map(r => row(r, "recent")))
+        .concat(rest.map(r => row(r, "all")));
 }
 
-function toRow(repo, section) {
+function toRow(repo, section, pinned, hidden) {
     const slash = repo.path.lastIndexOf("/");
     return {
         section: section,
@@ -148,7 +162,9 @@ function toRow(repo, section) {
         visibility: repo.visibility || "public",
         archived: !!repo.archived,
         defaultBranch: repo.default_branch || "",
-        pushedAt: repo.pushed_at || ""
+        pushedAt: repo.pushed_at || "",
+        pinned: !!pinned,
+        hidden: !!hidden
     };
 }
 
@@ -163,6 +179,16 @@ function lastTarget(entries, key, path) {
 function setLastTarget(entries, key, path, branch, max) {
     const prefix = key + "\t" + path + "\t";
     return [prefix + branch].concat(entries.filter(e => !e.startsWith(prefix))).slice(0, max);
+}
+
+// Pinned and hidden lists use the same "account<TAB>value" entries as recent.
+function toggleEntry(entries, key, value) {
+    const entry = key + "\t" + value;
+    return entries.indexOf(entry) !== -1 ? entries.filter(e => e !== entry) : entries.concat([entry]);
+}
+
+function removeEntry(entries, key, value) {
+    return entries.filter(e => e !== key + "\t" + value);
 }
 
 // Recent list entries are "account<TAB>owner/repo", newest first.

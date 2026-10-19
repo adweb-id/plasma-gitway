@@ -160,8 +160,7 @@ PlasmaExtras.Representation {
         contentItem: RowLayout {
             PlasmaComponents3.Label {
                 Layout.fillWidth: true
-                text: full.widget.lastCopied !== ""
-                      ? i18n("Copied: %1", full.widget.lastCopied)
+                text: full.widget.notice !== "" ? full.widget.notice
                       : (full.page && full.page.hints ? full.page.hints : "")
                 font: Kirigami.Theme.smallFont
                 opacity: 0.7

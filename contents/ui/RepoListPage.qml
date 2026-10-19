@@ -13,7 +13,7 @@ FocusScope {
     required property var full
 
     readonly property bool hasList: widget.phase === "ready" && widget.repoData !== null
-    readonly property string hints: i18n("Enter open · Ctrl+Enter new MR · O browser · C copy link")
+    readonly property string hints: i18n("Enter open · O browser · P pin · H hide")
     readonly property string status: widget.repoData
         ? i18n("%1 repos · synced %2", widget.repoCount, widget.ago(widget.repoData.synced_at)) : ""
 
@@ -28,7 +28,7 @@ FocusScope {
             Layout.margins: Kirigami.Units.smallSpacing
             visible: page.hasList
             focus: true
-            placeholderText: i18n("Search repos…  (org:  private:  public:  !archived)")
+            placeholderText: i18n("Search repos…  (org:  private:  public:  ! hidden)")
             text: page.widget.searchText
             onTextChanged: {
                 page.widget.searchText = text;
@@ -69,7 +69,7 @@ FocusScope {
                 section.delegate: PlasmaExtras.ListSectionHeader {
                     required property string section
                     width: ListView.view.width
-                    text: section === "recent" ? i18n("Recent") : i18n("All repos")
+                    text: section === "pinned" ? i18n("Pinned") : section === "recent" ? i18n("Recent") : i18n("All repos")
                 }
 
                 // Keyboard: Up/Down select, Enter opens the repo page, M (or
@@ -101,6 +101,10 @@ FocusScope {
                         page.showRepo(currentIndex, true);
                     } else if (noMods && event.key === Qt.Key_A) {
                         page.full.openAccounts();
+                    } else if (noMods && event.key === Qt.Key_P) {
+                        page.widget.togglePin(currentIndex);
+                    } else if (noMods && event.key === Qt.Key_H) {
+                        page.hideAt(currentIndex);
                     } else if (noMods && event.text.trim() !== "") {
                         page.widget.searchText += event.text;
                         searchField.forceActiveFocus();
@@ -132,11 +136,25 @@ FocusScope {
         }
     }
 
+    // H on a hidden row (only listed when searching with !) shows it again
+    function hideAt(index) {
+        const row = widget.rowAt(index);
+        if (row) {
+            if (row.hidden) {
+                widget.unhideRepo(row.path);
+            } else {
+                widget.hide(row.path);
+            }
+        }
+    }
+
     // Ctrl+O browser, Ctrl+C copy link (only when no text is selected in the
-    // search field), Ctrl+Shift+A account list, F5 check accounts again.
+    // search field), Ctrl+P pin, Ctrl+Shift+A account list, F5 check accounts again.
     function handleCtrlKey(event) {
         const ctrl = event.modifiers & Qt.ControlModifier;
-        if (ctrl && event.key === Qt.Key_O) {
+        if (ctrl && event.key === Qt.Key_P) {
+            widget.togglePin(Math.max(list.currentIndex, 0));
+        } else if (ctrl && event.key === Qt.Key_O) {
             widget.openRepo(Math.max(list.currentIndex, 0));
         } else if (ctrl && event.key === Qt.Key_C && searchField.selectedText === "") {
             widget.copyRepo(Math.max(list.currentIndex, 0), "url");
@@ -216,8 +234,8 @@ FocusScope {
         iconName: "search"
         title: searching ? i18n("No repos match \"%1\"", page.widget.searchText)
                          : i18n("No repositories found for this account")
-        explanation: searching && !withArchived ? i18n("Archived repos are hidden. Start the search with ! to include them.") : ""
-        actionText: !searching ? i18n("Sync repos") : (withArchived ? "" : i18n("Include archived"))
+        explanation: searching && !withArchived ? i18n("Hidden and archived repos are left out. Start the search with ! to include them.") : ""
+        actionText: !searching ? i18n("Sync repos") : (withArchived ? "" : i18n("Include hidden & archived"))
         onActionTriggered: {
             if (searching) {
                 page.widget.searchText = "!" + page.widget.searchText;
