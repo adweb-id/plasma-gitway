@@ -141,6 +141,30 @@ function parseCompare(account, stdout) {
     return { ahead: ahead, behind: behind, commits: commits };
 }
 
+// --- Latest commits of one branch (repos with only their default branch) ---------
+
+function commitsCommand(account, repo, branch, count) {
+    if (account.provider === "gitlab") {
+        return glApi(account, project(repo) + "/repository/commits?per_page=" + count
+                     + "&ref_name=" + encodeURIComponent(branch));
+    }
+    return ghScript(account, ghApi("repos/" + repo.path + "/commits?per_page=" + count
+                                   + "&sha=" + encodeURIComponent(branch)));
+}
+
+// -> [{sha, title, author, date}] newest first
+function parseCommits(account, stdout) {
+    const data = JSON.parse(stdout);
+    const firstLine = text => (text || "").split("\n")[0];
+    if (account.provider === "gitlab") {
+        return data.map(c => ({ sha: c.id, title: c.title || firstLine(c.message), author: c.author_name, date: c.committed_date }));
+    }
+    return data.map(c => ({
+        sha: c.sha, title: firstLine(c.commit.message),
+        author: c.author ? c.author.login : c.commit.author.name, date: c.commit.author.date
+    }));
+}
+
 // --- Create a merge / pull request ----------------------------------------------------
 
 // form: {title, source, target, description, draft, assignToMe, removeSource}

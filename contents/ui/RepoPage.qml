@@ -36,6 +36,9 @@ FocusScope {
     // Newest branch other than the default one: what a new merge request is usually for
     readonly property var lastPushed: branches.find(b => b.name !== defaultBranch) || null
     readonly property bool writable: !repo.archived && account && account.status === "ok"
+    // Branch the "Recent commits" section is about: the last pushed one, or
+    // the default branch when the repo has no other
+    readonly property string commitBranch: lastPushed ? lastPushed.name : defaultBranch
 
     // Open issues of the repo, folded until asked for
     property bool issuesOpen: false
@@ -105,15 +108,22 @@ FocusScope {
         });
     }
 
+    // With a pushed branch: its commits not yet in the default branch.
+    // Without one: the latest commits of the default branch (ahead is null).
     function loadCompare() {
-        if (!lastPushed || loadingCompare) {
+        if (commitBranch === "" || loadingCompare) {
             return;
         }
         loadingCompare = true;
-        widget.run(Forge.compareCommand(account, repo, defaultBranch, lastPushed.name), (stdout, stderr, exitCode) => {
+        const comparing = lastPushed !== null;
+        const command = comparing ? Forge.compareCommand(account, repo, defaultBranch, lastPushed.name)
+                                  : Forge.commitsCommand(account, repo, defaultBranch, 5);
+        widget.run(command, (stdout, stderr, exitCode) => {
             loadingCompare = false;
             try {
-                compare = exitCode === 0 ? Forge.parseCompare(account, stdout) : null;
+                compare = exitCode !== 0 ? null
+                        : comparing ? Forge.parseCompare(account, stdout)
+                        : { ahead: null, behind: null, commits: Forge.parseCommits(account, stdout) };
             } catch (e) {
                 compare = null;
             }
@@ -347,7 +357,7 @@ FocusScope {
                 // Commits of the last pushed branch, folded until asked for (mockup 4.11)
                 PlasmaComponents3.ItemDelegate {
                     Layout.fillWidth: true
-                    visible: page.lastPushed !== null
+                    visible: page.commitBranch !== ""
                     onClicked: {
                         page.commitsOpen = !page.commitsOpen;
                         if (page.commitsOpen && !page.compare) {
@@ -360,9 +370,9 @@ FocusScope {
                         }
                         PlasmaComponents3.Label {
                             Layout.fillWidth: true
-                            text: !page.lastPushed ? ""
-                                  : page.compare ? i18n("Recent commits on %1 · %2 since %3", page.lastPushed.name, page.compare.ahead, page.defaultBranch)
-                                  : i18n("Recent commits on %1", page.lastPushed.name)
+                            text: page.compare && page.compare.ahead !== null
+                                  ? i18n("Recent commits on %1 · %2 since %3", page.commitBranch, page.compare.ahead, page.defaultBranch)
+                                  : i18n("Recent commits on %1", page.commitBranch)
                             elide: Text.ElideRight
                         }
                     }
