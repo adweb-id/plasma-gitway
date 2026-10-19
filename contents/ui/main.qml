@@ -42,6 +42,11 @@ PlasmoidItem {
     property var queueErrors: ({ mine: "", reviews: "", issues: "" })
     property var queuesLoadedAt: null
     readonly property int queueMaxAge: 60 * 1000 // reopening the popup within a minute keeps them
+
+    // Panel badge: what waits for the user, from the Reviews and My MRs tabs
+    readonly property bool showBadge: Plasmoid.configuration.showBadge
+    readonly property int readyCount: mineItems.filter(i => i.status === "ready").length
+    readonly property int badgeCount: reviewItems.length + readyCount
     readonly property alias repoModel: repoModel
 
     // One short line for the footer after an action ("Copied: …", "Hidden …"),
@@ -57,7 +62,10 @@ PlasmoidItem {
 
     Plasmoid.icon: iconSource
     toolTipMainText: i18n("Gitway")
-    toolTipSubText: account ? i18n("%1 · %2 repos", Repos.accountLabel(account), repoCount) : ""
+    toolTipSubText: !account ? ""
+        : showBadge && queuesLoadedAt ? i18n("%1 · %2 waiting for review · %3 ready to merge",
+                                             Repos.accountLabel(account), reviewItems.length, readyCount)
+        : i18n("%1 · %2 repos", Repos.accountLabel(account), repoCount)
 
     // Extra entries in the widget's own right-click menu, next to
     // "Configure Gitway…". Sync runs at once, so it has no ellipsis.
@@ -157,7 +165,8 @@ PlasmoidItem {
             if (changed || !repoData) {
                 loadRepos();
             }
-            if (root.expanded && (changed || !queuesLoadedAt || Date.now() - queuesLoadedAt > queueMaxAge)) {
+            // The badge needs the queues even before the popup was ever opened
+            if ((root.expanded || showBadge) && (changed || !queuesLoadedAt || Date.now() - queuesLoadedAt > queueMaxAge)) {
                 loadQueues();
             }
         });
@@ -357,6 +366,11 @@ PlasmoidItem {
         function onHiddenChanged() { root.rebuild(); }
         function onSortByChanged() { root.rebuild(); }
         function onSortDescendingChanged() { root.rebuild(); }
+        function onShowBadgeChanged() {
+            if (root.showBadge) {
+                root.loadQueues();
+            }
+        }
         function onIncludeOrgsChanged() { root.sync(); }
     }
 
@@ -530,7 +544,16 @@ PlasmoidItem {
         return i18n("%1y ago", Math.floor(days / 365));
     }
 
-    // No timer: the account list is checked again each time the popup opens.
+    // The only timer, and only while the user asked for the badge with an
+    // interval (0 = refresh only when the popup opens). Off by default.
+    Timer {
+        interval: Math.max(Plasmoid.configuration.badgeInterval, 1) * 60 * 1000
+        running: root.showBadge && Plasmoid.configuration.badgeInterval > 0 && root.phase === "ready" && !root.expanded
+        repeat: true
+        onTriggered: root.loadQueues()
+    }
+
+    // Otherwise the account list is checked again each time the popup opens.
     Component.onCompleted: loadAccounts()
 
     onExpandedChanged: {

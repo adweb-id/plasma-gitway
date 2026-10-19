@@ -11,6 +11,8 @@ KCM.SimpleKCM {
     property alias cfg_assignToMe: assignCheck.checked
     property alias cfg_deleteSourceBranch: deleteSourceCheck.checked
     property alias cfg_openAfterCreate: openAfterCheck.checked
+    property alias cfg_showBadge: badgeCheck.checked
+    property alias cfg_badgeInterval: badgeIntervalSpin.value
     // Hidden repos of every account; only the active account's are listed here
     property var cfg_hidden: []
     property string cfg_activeAccount: ""
@@ -89,6 +91,43 @@ KCM.SimpleKCM {
             Layout.maximumWidth: Kirigami.Units.gridUnit * 26
             wrapMode: Text.Wrap
             text: i18n("Add GitHub and GitLab accounts from the account list in the popup, with Add account…")
+        }
+
+        Item {
+            Kirigami.FormData.isSection: true
+        }
+
+        QQC2.CheckBox {
+            id: badgeCheck
+            Kirigami.FormData.label: i18n("Panel icon:")
+            text: i18n("Show a badge with what waits for me")
+        }
+
+        QQC2.Label {
+            Layout.maximumWidth: Kirigami.Units.gridUnit * 26
+            wrapMode: Text.Wrap
+            enabled: badgeCheck.checked
+            opacity: 0.7
+            text: i18n("Merge requests waiting for my review, plus my merge requests that are ready to merge.")
+        }
+
+        RowLayout {
+            Kirigami.FormData.label: i18n("Check every:")
+            enabled: badgeCheck.checked
+
+            QQC2.SpinBox {
+                id: badgeIntervalSpin
+                from: 0
+                to: 240
+                stepSize: 5
+                // 0 checks only when the popup opens: no timer at all
+                textFromValue: value => value === 0 ? i18n("never") : i18np("%1 minute", "%1 minutes", value)
+                valueFromText: text => parseInt(text) || 0
+            }
+            QQC2.Label {
+                text: badgeIntervalSpin.value === 0 ? i18n("(refreshed when the popup opens)") : ""
+                opacity: 0.7
+            }
         }
 
         Item {

@@ -48,6 +48,16 @@
     <entry name="openAfterCreate" type="Bool">
       <default>true</default>
     </entry>
+    <!-- Badge on the panel icon: reviews waiting plus own merge requests ready to merge -->
+    <entry name="showBadge" type="Bool">
+      <default>false</default>
+    </entry>
+    <!-- Minutes between badge checks while the popup is closed; 0 = only when it opens -->
+    <entry name="badgeInterval" type="Int">
+      <default>15</default>
+      <min>0</min>
+      <max>240</max>
+    </entry>
     <!-- Sync when the popup opens and the list is older than an hour -->
     <entry name="syncOnOpen" type="Bool">
       <default>false</default>
