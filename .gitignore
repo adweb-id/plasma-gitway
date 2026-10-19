@@ -1,0 +1,2 @@
+# Release files, built with: zip -r gitway-<version>.plasmoid metadata.json contents
+*.plasmoid
